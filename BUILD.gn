@@ -1,0 +1,58 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2019-2019. All rights reserved.
+
+import("//build/zidane.gni")
+
+zidane_source_set("png_static") {
+  sources = [
+    "//third_party/libpng/png.c",
+    "//third_party/libpng/pngerror.c",
+    "//third_party/libpng/pngget.c",
+    "//third_party/libpng/pngmem.c",
+    "//third_party/libpng/pngpread.c",
+    "//third_party/libpng/pngread.c",
+    "//third_party/libpng/pngrio.c",
+    "//third_party/libpng/pngrtran.c",
+    "//third_party/libpng/pngrutil.c",
+    "//third_party/libpng/pngset.c",
+    "//third_party/libpng/pngtrans.c",
+    "//third_party/libpng/pngwio.c",
+    "//third_party/libpng/pngwrite.c",
+    "//third_party/libpng/pngwtran.c",
+    "//third_party/libpng/pngwutil.c",
+    "//third_party/libpng/arm/arm_init.c",
+    "//third_party/libpng/arm/filter_neon.S",
+    "//third_party/libpng/arm/filter_neon_intrinsics.c",
+    "//third_party/libpng/arm/palette_neon_intrinsics.c",
+  ]
+  include_dirs = [
+    "//third_party/libpng/png.h",
+    "//third_party/libpng/pngconf.h",
+    "//third_party/libpng/pngdebug.h",
+    "//third_party/libpng/pnginfo.h",
+    "//third_party/libpng/pngpriv.h",
+    "//third_party/libpng/pngstruct.h",
+    "//third_party/zlib",
+    "//third_party/libpng/contrib/gregbook",
+    "//third_party/libpng/contrib/pngminim/decoder",
+    "//third_party/libpng/contrib/pngminim/encoder",
+    "//third_party/libpng/contrib/pngminim/preader",
+    "//third_party/libpng/contrib/tools",
+    "//third_party/libpng/contrib/visupng",
+    "//third_party/libpng/contrib/libtests",
+  ]
+  cflags = [
+    "-DPNG_NO_USE_READ_MACROS",
+    "-DPNGLIB_LIBNAME=\"PNG16_0\"",
+    "-DPNGLIB_VERSION=\"1.6.37\"",
+  ]
+  deps = [
+      "//third_party/zlib:libz"
+  ]
+}
+
+zidane_shared_library("libpng") {
+  deps = [
+    ":png_static",
+  ]
+  subsystem_name = "common"
+}
