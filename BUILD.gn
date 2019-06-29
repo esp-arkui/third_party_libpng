@@ -25,12 +25,7 @@ zidane_source_set("png_static") {
     "//third_party/libpng/arm/palette_neon_intrinsics.c",
   ]
   include_dirs = [
-    "//third_party/libpng/png.h",
-    "//third_party/libpng/pngconf.h",
-    "//third_party/libpng/pngdebug.h",
-    "//third_party/libpng/pnginfo.h",
-    "//third_party/libpng/pngpriv.h",
-    "//third_party/libpng/pngstruct.h",
+    "//third_party/libpng",
     "//third_party/zlib",
     "//third_party/libpng/contrib/gregbook",
     "//third_party/libpng/contrib/pngminim/decoder",
@@ -39,6 +34,7 @@ zidane_source_set("png_static") {
     "//third_party/libpng/contrib/tools",
     "//third_party/libpng/contrib/visupng",
     "//third_party/libpng/contrib/libtests",
+    "//prebuilts/clang/host/linux-x86/clang-r339409b/lib64/clang/8.0.2/include",
   ]
   cflags = [
     "-DPNG_NO_USE_READ_MACROS",
