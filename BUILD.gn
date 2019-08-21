@@ -34,7 +34,6 @@ zidane_source_set("png_static") {
     "//third_party/libpng/contrib/tools",
     "//third_party/libpng/contrib/visupng",
     "//third_party/libpng/contrib/libtests",
-    "//prebuilts/clang/host/linux-x86/clang-r339409b/lib64/clang/8.0.2/include",
   ]
   cflags = [
     "-DPNG_NO_USE_READ_MACROS",
