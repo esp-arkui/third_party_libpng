@@ -1,8 +1,8 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2019-2019. All rights reserved.
 
-import("//build/zidane.gni")
+import("//build/harmonyos.gni")
 
-zidane_source_set("png_static") {
+harmonyos_source_set("png_static") {
   sources = [
     "//third_party/libpng/png.c",
     "//third_party/libpng/pngerror.c",
@@ -45,7 +45,7 @@ zidane_source_set("png_static") {
   ]
 }
 
-zidane_shared_library("libpng") {
+harmonyos_shared_library("libpng") {
   deps = [
     ":png_static",
   ]
