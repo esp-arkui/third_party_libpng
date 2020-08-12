@@ -8,7 +8,7 @@ ROOT_DIR=$(dirname "$0")
 git checkout -- configure
 git apply huawei_libpng_patch1.patch
 
-./configure CPPFLAGS="-I../zlib" LDFLAGS="-L../../out/ipcamera_hi3516dv300_liteos_a" CC=$ROOT_DIR/../../prebuilts/gcc/linux-x86/arm/arm-linux-harmonyeabi-gcc/bin/arm-linux-ohoseabi-gcc --host=arm-linux 
+./configure CPPFLAGS="-I../zlib" LDFLAGS="-L$OUT_DIR" CC=$ROOT_DIR/../../prebuilts/gcc/linux-x86/arm/arm-linux-harmonyeabi-gcc/bin/arm-linux-ohoseabi-gcc --host=arm-linux
 
 make clean
 make -j
