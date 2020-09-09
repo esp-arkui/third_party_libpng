@@ -36,8 +36,7 @@ lite_library("libpng") {
     public_configs = [
        ":libpng_config",
     ]
-
     deps = [
-        "//build/lite/config/component/zlib:zlib_shared",
+        "//third_party/zlib:zlib_shared",
     ]
 }
