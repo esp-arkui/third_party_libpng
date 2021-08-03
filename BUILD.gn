@@ -75,7 +75,7 @@ if (defined(ohos_lite)) {
     public_configs = [ ":libpng_config" ]
     subsystem_name = "common"
     module_install_dir = "lib"
-    install_images = [ "updater" ]
+    install_images = [ "system", "updater" ]
     part_name = "graphic_standard"
   }
 
