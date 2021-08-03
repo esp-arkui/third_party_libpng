@@ -74,6 +74,9 @@ if (defined(ohos_lite)) {
     deps = [ ":libpng_static" ]
     public_configs = [ ":libpng_config" ]
     subsystem_name = "common"
+    module_install_dir = "lib"
+    install_images = [ "updater" ]
+    part_name = "graphic_standard"
   }
 
   ohos_static_library("libpng_static") {
