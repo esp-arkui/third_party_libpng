@@ -34,7 +34,9 @@ if (defined(ohos_lite)) {
 
     public_configs = [ ":libpng_config" ]
 
-    deps = [ "//build/lite/config/component/zlib:zlib_shared" ]
+    deps = [
+      "//build/lite/config/component/zlib:zlib_shared",
+    ]
   }
 } else {
   import("//build/ohos.gni")
@@ -71,10 +73,15 @@ if (defined(ohos_lite)) {
   }
 
   ohos_shared_library("libpng") {
-    deps = [ ":libpng_static" ]
+    deps = [
+      ":libpng_static",
+    ]
     public_configs = [ ":libpng_config" ]
     subsystem_name = "common"
-    install_images = [ "system", "updater" ]
+    install_images = [
+      "system",
+      "updater",
+    ]
     part_name = "graphic_standard"
   }
 
@@ -104,7 +111,9 @@ if (defined(ohos_lite)) {
       "//third_party/libpng",
       "//third_party/zlib",
     ]
-    deps = [ "//third_party/zlib:libz" ]
+    deps = [
+      "//third_party/zlib:libz",
+    ]
     public_configs = [ ":libpng_config" ]
     subsystem_name = "common"
   }
