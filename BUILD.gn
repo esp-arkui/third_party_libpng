@@ -29,12 +29,16 @@ if (defined(ohos_lite)) {
   ]
 
   lite_library("libpng") {
-    target_type = "shared_library"
+    if (ohos_kernel_type == "liteos_m") {
+      target_type = "static_library"
+      deps = [ "//build/lite/config/component/zlib:zlib_static" ]
+    } else {
+      target_type = "shared_library"
+      deps = [ "//build/lite/config/component/zlib:zlib_shared" ]
+    }
+
     sources = libpng_source
-
     public_configs = [ ":libpng_config" ]
-
-    deps = [ "//build/lite/config/component/zlib:zlib_shared" ]
   }
 } else {
   import("//build/ohos.gni")
