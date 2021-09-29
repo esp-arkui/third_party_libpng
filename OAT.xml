@@ -85,6 +85,13 @@ Note:If the text contains special characters, please escape them according to th
                 <filteritem type="filepath" name="contrib/gregbook/Makefile.sgi" desc="sample makefile, not license declare"/>
                 <filteritem type="filepath" name="contrib/visupng/cexcept.h" desc="An interface for exception-handling in ANSI C"/>
             </filefilter>
+            <filefilter name="binaryFileTypePolicyFilter" desc="Filters for binary file policies">
+                <filteritem type="filepath" name="contrib/pngsuite/.*.png" desc="libpng file, not to check"/>
+                <filteritem type="filepath" name="contrib/testpngs/.*.png" desc="libpng file, not to check"/>
+                <filteritem type="filepath" name="contrib/visupng/.*.png|.*.ico" desc="libpng file, not to check"/>
+                <filteritem type="filepath" name="contrib/gregbook/.*.png" desc="libpng file, not to check"/>
+                <filteritem type="filename" name="png*.png|png*.jpg" desc="libpng file, not to check"/>
+            </filefilter>
         </filefilterlist>
     </oatconfig>
 </configuration>
