@@ -47,6 +47,10 @@ if (defined(ohos_lite)) {
     include_dirs = [ "//third_party/libpng" ]
   }
 
+  config("libpng_wno_config") {
+    cflags = [ "-Wno-implicit-fallthrough" ]
+  }
+
   ohos_source_set("png_static") {
     sources = [
       "//third_party/libpng/arm/arm_init.c",
@@ -77,6 +81,7 @@ if (defined(ohos_lite)) {
   ohos_shared_library("libpng") {
     deps = [ ":libpng_static" ]
     public_configs = [ ":libpng_config" ]
+    configs = [ ":libpng_wno_config" ]
     subsystem_name = "common"
     install_images = [
       "system",
@@ -113,6 +118,7 @@ if (defined(ohos_lite)) {
     ]
     deps = [ "//third_party/zlib:libz" ]
     public_configs = [ ":libpng_config" ]
+    configs = [ ":libpng_wno_config" ]
     subsystem_name = "common"
   }
 }
