@@ -87,7 +87,7 @@ if (defined(ohos_lite)) {
       "system",
       "updater",
     ]
-    part_name = "graphic_standard"
+    part_name = "graphic_graphic"
   }
 
   ohos_static_library("libpng_static") {
