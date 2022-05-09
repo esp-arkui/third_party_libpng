@@ -82,12 +82,14 @@ if (defined(ohos_lite)) {
     deps = [ ":libpng_static" ]
     public_configs = [ ":libpng_config" ]
     configs = [ ":libpng_wno_config" ]
-    subsystem_name = "common"
+    subsystem_name = "thirdparty"
     install_images = [
       "system",
       "updater",
     ]
-    part_name = "graphic_standard"
+    part_name = "giflib"
+    output_name = "giflib"
+    install_enable = true
   }
 
   ohos_static_library("libpng_static") {
