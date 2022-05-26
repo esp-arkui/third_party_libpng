@@ -87,7 +87,7 @@ if (defined(ohos_lite)) {
       "system",
       "updater",
     ]
-    part_name = "libpng"
+    part_name = "thirdparty_libpng"
     output_name = "libpng"
     install_enable = true
   }
