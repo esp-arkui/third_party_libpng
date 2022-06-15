@@ -14,7 +14,7 @@
         "en": "README"
     },
     "component": {
-        "name": "thirdparty_libpng",
+        "name": "libpng",
         "subsystem": "thirdparty",
         "syscap": [],
         "features": [],
