@@ -76,6 +76,8 @@ if (defined(ohos_lite)) {
       "//third_party/libpng",
       "//third_party/zlib",
     ]
+    part_name = [ "libpng" ]
+    subsystem_name = [ "thirdparty" ]
   }
 
   ohos_shared_library("libpng") {
@@ -87,7 +89,7 @@ if (defined(ohos_lite)) {
       "system",
       "updater",
     ]
-    part_name = "thirdparty_libpng"
+    part_name = "libpng"
     output_name = "libpng"
     install_enable = true
   }
@@ -121,6 +123,7 @@ if (defined(ohos_lite)) {
     deps = [ "//third_party/zlib:libz" ]
     public_configs = [ ":libpng_config" ]
     configs = [ ":libpng_wno_config" ]
-    subsystem_name = "common"
+    part_name = [ "libpng" ]
+    subsystem_name = "thirdparty"
   }
 }
