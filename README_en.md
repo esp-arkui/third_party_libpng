@@ -1,20 +1,19 @@
-README for libpng version 1.6.37 - April 14, 2019
-=================================================
+# README for libpng version 1.6.37 - April 14, 2019
 
-See the note about version numbers near the top of png.h.
-See INSTALL for instructions on how to install libpng.
+- See the note about version numbers near the top of png.h.
+- See INSTALL for instructions on how to install libpng.
 
 Libpng comes in several distribution formats.  Get libpng-*.tar.gz or
 libpng-*.tar.xz or if you want UNIX-style line endings in the text
 files, or lpng*.7z or lpng*.zip if you want DOS-style line endings.
 
 Version 0.89 was the first official release of libpng.  Don't let the
-fact that it's the first release fool you.  The libpng library has been
-in extensive use and testing since mid-1995.  By late 1997 it had
-finally gotten to the stage where there hadn't been significant
+fact that it's the first release fool you.  
+- The libpng library has been in extensive use and testing since mid-1995.  
+- By late 1997 it had finally gotten to the stage where there hadn't been significant
 changes to the API in some time, and people have a bad feeling about
-libraries with versions < 1.0.  Version 1.0.0 was released in
-March 1998.
+libraries with versions < 1.0. 
+- Version 1.0.0 was released in March 1998.
 
 ****
 Note that some of the changes to the png_info structure render this
@@ -176,8 +175,8 @@ Files in this distribution:
 
 Good luck, and happy coding!
 
- * Cosmin Truta (current maintainer, since 2018)
- * Glenn Randers-Pehrson (former maintainer, 1998-2018)
- * Andreas Eric Dilger (former maintainer, 1996-1997)
- * Guy Eric Schalnat (original author and former maintainer, 1995-1996)
+- Cosmin Truta (current maintainer, since 2018)
+- Glenn Randers-Pehrson (former maintainer, 1998-2018)
+- Andreas Eric Dilger (former maintainer, 1996-1997)
+- Guy Eric Schalnat (original author and former maintainer, 1995-1996)
    (formerly of Group 42, Inc.)
