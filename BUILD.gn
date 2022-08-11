@@ -5,6 +5,13 @@ if (defined(ohos_lite)) {
 
   config("libpng_config") {
     include_dirs = [ "//third_party/libpng" ]
+    if (board_toolchain_type == "iccarm") {
+      cflags = [
+        "--diag_suppress",
+        "Pa082,Pa084",
+      ]
+      cflags_cc = cflags
+    }
   }
 
   libpng_source = [
