@@ -5,13 +5,6 @@ if (defined(ohos_lite)) {
 
   config("libpng_config") {
     include_dirs = [ "//third_party/libpng" ]
-    if (board_toolchain_type == "iccarm") {
-      cflags = [
-        "--diag_suppress",
-        "Pa082,Pa084",
-      ]
-      cflags_cc = cflags
-    }
   }
 
   libpng_source = [
@@ -43,7 +36,13 @@ if (defined(ohos_lite)) {
       target_type = "shared_library"
       deps = [ "//build/lite/config/component/zlib:zlib_shared" ]
     }
-
+    if (board_toolchain_type == "iccarm") {
+      cflags = [
+        "--diag_suppress",
+        "Pa082,Pa084",
+      ]
+      cflags_cc = cflags
+    }
     sources = libpng_source
     public_configs = [ ":libpng_config" ]
   }
