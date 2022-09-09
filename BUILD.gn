@@ -36,7 +36,7 @@ if (defined(ohos_lite)) {
       target_type = "shared_library"
       deps = [ "//build/lite/config/component/zlib:zlib_shared" ]
     }
-    if (board_toolchain_type == "iccarm") {
+    if (defined(board_toolchain_type) && board_toolchain_type == "iccarm") {
       cflags = [
         "--diag_suppress",
         "Pa082,Pa084",
