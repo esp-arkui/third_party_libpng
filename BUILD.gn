@@ -1,7 +1,7 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2020. All rights reserved.
 
 if (defined(ohos_lite)) {
-  import("//build/lite/config/component/lite_component.gni")
+  import("//build/hb/config/component/lite_component.gni")
 
   config("libpng_config") {
     include_dirs = [ "//third_party/libpng" ]
@@ -31,10 +31,10 @@ if (defined(ohos_lite)) {
   lite_library("libpng") {
     if (ohos_kernel_type == "liteos_m") {
       target_type = "static_library"
-      deps = [ "//build/lite/config/component/zlib:zlib_static" ]
+      deps = [ "//build/hb/config/component/zlib:zlib_static" ]
     } else {
       target_type = "shared_library"
-      deps = [ "//build/lite/config/component/zlib:zlib_shared" ]
+      deps = [ "//build/hb/config/component/zlib:zlib_shared" ]
     }
     if (defined(board_toolchain_type) && board_toolchain_type == "iccarm") {
       cflags = [
