@@ -95,6 +95,7 @@ if (defined(ohos_lite)) {
       "system",
       "updater",
     ]
+    relative_install_dir = "chipset-sdk"
     part_name = "libpng"
     output_name = "libpng"
     install_enable = true
