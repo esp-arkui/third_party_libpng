@@ -90,6 +90,10 @@ if (defined(ohos_lite)) {
     deps = [ ":libpng_static" ]
     public_configs = [ ":libpng_config" ]
     configs = [ ":libpng_wno_config" ]
+    innerapi_tags = [
+      "platformsdk",
+      "chipsetsdk",
+    ]
     subsystem_name = "thirdparty"
     install_images = [
       "system",
