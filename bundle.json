@@ -23,7 +23,7 @@
         "ram": "",
         "deps": {
             "components": [],
-            "third_party": []
+            "third_party": ["zlib"]
         },
         "build": {
             "sub_component": [],
