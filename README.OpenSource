@@ -1,11 +1,11 @@
 [
     {
-        "Name": "libpng",
+        "Name": "openEuler:libpng",
         "License": "libpng license",
         "License File": "LICENSE",
-        "Version Number": "1.6.37",
+        "Version Number": "1.6.37-2.oe2203",
         "Owner": "shangzhi@huawei.com",
-        "Upstream URL": "http://www.libpng.org/pub/png/libpng.html",
+        "Upstream URL": "https://repo.openeuler.org/openEuler-22.03-LTS/source/Packages/libpng-1.6.37-2.oe2203.src.rpm",
         "Description": "Reference library for supporting the Portable Network Graphics (PNG) format."
     }
 ]
