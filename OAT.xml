@@ -66,6 +66,7 @@ Note:If the text contains special characters, please escape them according to th
                 <policyitem type="compatibility" name="GPLStyleLicense" path="compile" desc="Automake file, not license declare"/>
                 <policyitem type="compatibility" name="InvalidLicense" path="LICENSE" desc=""/>
                 <policyitem type="compatibility" name="GPL-2.0+" path="contrib/gregbook/*.*" desc="BSD-like with advertising clause or GNU GPL v2 or later"/>
+                <policyitem type="compatibility" name="zlib" path="libpng.spec" desc="They are used in dynamic link mode."/>
             </policy>
         </policylist>
         <filefilterlist>
@@ -93,5 +94,10 @@ Note:If the text contains special characters, please escape them according to th
                 <filteritem type="filename" name="png*.png|png*.jpg" desc="libpng file, not to check"/>
             </filefilter>
         </filefilterlist>
+        <licensematcherlist>
+            <licensematcher name="zlib" desc="">
+                <licensetext name="License:        zlib" desc=""/>
+            </licensematcher>
+        </licensematcherlist>
     </oatconfig>
 </configuration>
