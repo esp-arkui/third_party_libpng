@@ -1,5 +1,14 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2020. All rights reserved.
 
+import("//build/ohos.gni")
+libpng_path = rebase_path("//third_party/libpng")
+install_args = [
+  "--gen-dir",
+  "$libpng_path",
+]
+install_script = rebase_path("//third_party/libpng/install.py")
+print(exec_script(install_script, install_args, "string", []))
+
 if (defined(ohos_lite)) {
   import("//build/lite/config/component/lite_component.gni")
 
