@@ -23,7 +23,7 @@ import shutil
 
 def untar_file(tar_file_path, extract_path):
     try:
-        tar_cmd = ['tar', '-zxvf', tar_file_path, '-C', extract_path]
+        tar_cmd = ['tar', '-zxf', tar_file_path, '-C', extract_path]
         subprocess.run(tar_cmd, check=True)
     except Exception as e:
         print("tar error!")
@@ -31,13 +31,18 @@ def untar_file(tar_file_path, extract_path):
 
 
 def move_file(src_path, dst_path):
-    files = os.listdir(src_path)
+    files = [
+        "backport-avoid-random-test-failure.patch",
+        "CVE-2019-6129.patch",
+        "huawei_libpng_CMakeList.patch",
+        "libpng-fix-arm-neon.patch",
+        "libpng-multilib.patch",
+        "pnglibconf.h"
+    ]
     for file in files:
         src_file = os.path.join(src_path, file)
         dst_file = os.path.join(dst_path, file)
-        shutil.move(src_file, dst_file)
-    rm_cmd = ['rm', '-rf', src_path]
-    subprocess.run(rm_cmd, check=True)
+        shutil.copy(src_file, dst_file)
 
 
 def apply_patch(patch_file, target_dir):
@@ -51,7 +56,7 @@ def apply_patch(patch_file, target_dir):
         return
 
 
-def do_patch(args, target_dir):
+def do_patch(target_dir):
     patch_file = [
         "backport-avoid-random-test-failure.patch",
         "CVE-2019-6129.patch",
@@ -61,22 +66,20 @@ def do_patch(args, target_dir):
     ]
 
     for patch in patch_file:
-        file_path = os.path.join(args.gen_dir, patch)
-        apply_patch(file_path, target_dir)
+        apply_patch(patch, target_dir)
 
 
 def main():
     libpng_path = argparse.ArgumentParser()
     libpng_path.add_argument('--gen-dir', help='generate path of log', required=True)
+    libpng_path.add_argument('--source-dir', help='generate path of log', required=True)
     args = libpng_path.parse_args()
-    tar_file_path = os.path.join(args.gen_dir, "libpng-1.6.37.tar.gz")
+    tar_file_path = os.path.join(args.source_dir, "libpng-1.6.37.tar.gz")
     target_dir = os.path.join(args.gen_dir, "libpng-1.6.37")
 
-    clean_cmd = ['git', 'clean', '-df']
-    subprocess.run(clean_cmd, cwd=args.gen_dir, check=True)
     untar_file(tar_file_path, args.gen_dir)
-    move_file(target_dir, args.gen_dir)
-    do_patch(args, args.gen_dir)
+    move_file(args.source_dir, target_dir)
+    do_patch(target_dir)
     return 0
 
 if __name__ == '__main__':
