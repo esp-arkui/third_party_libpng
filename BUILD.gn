@@ -1,32 +1,49 @@
 # Copyright (c) Huawei Technologies Co., Ltd. 2020. All rights reserved.
 
+import("//build/ohos.gni")
+
+action("libpng_action") {
+  script = "//third_party/libpng/install.py"
+  outputs = [
+    "${target_gen_dir}/libpng-1.6.37/png.c",
+    "${target_gen_dir}/libpng-1.6.37/pngerror.c",
+    "${target_gen_dir}/libpng-1.6.37/pngget.c",
+    "${target_gen_dir}/libpng-1.6.37/pngmem.c",
+    "${target_gen_dir}/libpng-1.6.37/pngpread.c",
+    "${target_gen_dir}/libpng-1.6.37/pngread.c",
+    "${target_gen_dir}/libpng-1.6.37/pngrio.c",
+    "${target_gen_dir}/libpng-1.6.37/pngrtran.c",
+    "${target_gen_dir}/libpng-1.6.37/pngrutil.c",
+    "${target_gen_dir}/libpng-1.6.37/pngset.c",
+    "${target_gen_dir}/libpng-1.6.37/pngtrans.c",
+    "${target_gen_dir}/libpng-1.6.37/pngwio.c",
+    "${target_gen_dir}/libpng-1.6.37/pngwrite.c",
+    "${target_gen_dir}/libpng-1.6.37/pngwtran.c",
+    "${target_gen_dir}/libpng-1.6.37/pngwutil.c",
+    "${target_gen_dir}/libpng-1.6.37/arm/arm_init.c",
+    "${target_gen_dir}/libpng-1.6.37/arm/filter_neon_intrinsics.c",
+    "${target_gen_dir}/libpng-1.6.37/arm/palette_neon_intrinsics.c",
+  ]
+
+  inputs = [ "//third_party/libpng/libpng-1.6.37.tar.gz" ]
+  libpng_path = rebase_path("${target_gen_dir}", root_build_dir)
+  libpng_source_path = rebase_path("//third_party/libpng", root_build_dir)
+  args = [
+    "--gen-dir",
+    "$libpng_path",
+    "--source-dir",
+    "$libpng_source_path",
+  ]
+}
+
 if (defined(ohos_lite)) {
   import("//build/lite/config/component/lite_component.gni")
 
   config("libpng_config") {
-    include_dirs = [ "//third_party/libpng" ]
+    include_dirs = [ "${target_gen_dir}/libpng-1.6.37/" ]
   }
 
-  libpng_source = [
-    "//third_party/libpng/png.c",
-    "//third_party/libpng/pngerror.c",
-    "//third_party/libpng/pngget.c",
-    "//third_party/libpng/pngmem.c",
-    "//third_party/libpng/pngpread.c",
-    "//third_party/libpng/pngread.c",
-    "//third_party/libpng/pngrio.c",
-    "//third_party/libpng/pngrtran.c",
-    "//third_party/libpng/pngrutil.c",
-    "//third_party/libpng/pngset.c",
-    "//third_party/libpng/pngtrans.c",
-    "//third_party/libpng/pngwio.c",
-    "//third_party/libpng/pngwrite.c",
-    "//third_party/libpng/pngwtran.c",
-    "//third_party/libpng/pngwutil.c",
-    "//third_party/libpng/arm/arm_init.c",
-    "//third_party/libpng/arm/filter_neon_intrinsics.c",
-    "//third_party/libpng/arm/palette_neon_intrinsics.c",
-  ]
+  libpng_source = get_target_outputs(":libpng_action")
 
   lite_library("libpng") {
     if (ohos_kernel_type == "liteos_m") {
@@ -36,6 +53,7 @@ if (defined(ohos_lite)) {
       target_type = "shared_library"
       deps = [ "//build/lite/config/component/zlib:zlib_shared" ]
     }
+    deps += [ ":libpng_action" ]
     if (defined(board_toolchain_type) && board_toolchain_type == "iccarm") {
       cflags = [
         "--diag_suppress",
@@ -50,7 +68,7 @@ if (defined(ohos_lite)) {
   import("//build/ohos.gni")
 
   config("libpng_config") {
-    include_dirs = [ "//third_party/libpng" ]
+    include_dirs = [ "${target_gen_dir}/libpng-1.6.37/" ]
   }
 
   config("libpng_wno_config") {
@@ -58,30 +76,13 @@ if (defined(ohos_lite)) {
   }
 
   ohos_source_set("png_static") {
-    sources = [
-      "//third_party/libpng/arm/arm_init.c",
-      "//third_party/libpng/arm/filter_neon_intrinsics.c",
-      "//third_party/libpng/arm/palette_neon_intrinsics.c",
-      "//third_party/libpng/png.c",
-      "//third_party/libpng/pngerror.c",
-      "//third_party/libpng/pngget.c",
-      "//third_party/libpng/pngmem.c",
-      "//third_party/libpng/pngpread.c",
-      "//third_party/libpng/pngread.c",
-      "//third_party/libpng/pngrio.c",
-      "//third_party/libpng/pngrtran.c",
-      "//third_party/libpng/pngrutil.c",
-      "//third_party/libpng/pngset.c",
-      "//third_party/libpng/pngtrans.c",
-      "//third_party/libpng/pngwio.c",
-      "//third_party/libpng/pngwrite.c",
-      "//third_party/libpng/pngwtran.c",
-      "//third_party/libpng/pngwutil.c",
-    ]
+    sources = get_target_outputs(":libpng_action")
     include_dirs = [
-      "//third_party/libpng",
+      "${target_gen_dir}/libpng-1.6.37/",
       "//third_party/zlib",
     ]
+    deps = [ ":libpng_action" ]
+    public_configs = [ ":libpng_config" ]
     part_name = "libpng"
     subsystem_name = "thirdparty"
   }
@@ -105,32 +106,14 @@ if (defined(ohos_lite)) {
   }
 
   ohos_static_library("libpng_static") {
-    sources = [
-      "//third_party/libpng/arm/arm_init.c",
-      "//third_party/libpng/arm/filter_neon_intrinsics.c",
-      "//third_party/libpng/arm/palette_neon_intrinsics.c",
-      "//third_party/libpng/png.c",
-      "//third_party/libpng/pngerror.c",
-      "//third_party/libpng/pngget.c",
-      "//third_party/libpng/pngmem.c",
-      "//third_party/libpng/pngpread.c",
-      "//third_party/libpng/pngread.c",
-      "//third_party/libpng/pngrio.c",
-      "//third_party/libpng/pngrtran.c",
-      "//third_party/libpng/pngrutil.c",
-      "//third_party/libpng/pngset.c",
-      "//third_party/libpng/pngtrans.c",
-      "//third_party/libpng/pngwio.c",
-      "//third_party/libpng/pngwrite.c",
-      "//third_party/libpng/pngwtran.c",
-      "//third_party/libpng/pngwutil.c",
-    ]
+    sources = get_target_outputs(":libpng_action")
 
     include_dirs = [
-      "//third_party/libpng",
+      "${target_gen_dir}/libpng-1.6.37/",
       "//third_party/zlib",
     ]
     deps = [ "//third_party/zlib:libz" ]
+    deps += [ ":libpng_action" ]
     public_configs = [ ":libpng_config" ]
     configs = [ ":libpng_wno_config" ]
     part_name = "libpng"
