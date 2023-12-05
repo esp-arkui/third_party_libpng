@@ -1,7 +1,7 @@
 Name:           libpng
 Epoch:          2
-Version:        1.6.37
-Release:        4
+Version:        1.6.38
+Release:        2
 Summary:        A library of functions for manipulating PNG image format files
 License:        zlib
 URL:            http://www.libpng.org/pub/png/libpng.html
@@ -11,7 +11,6 @@ Source1:        pngusr.dfa
 Patch0:         libpng-multilib.patch
 Patch1:         libpng-fix-arm-neon.patch
 Patch2:         CVE-2019-6129.patch
-Patch6000:      backport-avoid-random-test-failure.patch
 
 BuildRequires:  zlib-devel autoconf automake libtool
 
@@ -90,8 +89,11 @@ make check
 %{_mandir}/man*/*
 
 %changelog
-* Thu Dec 15 2022 zhouwenpei <zhouwenpei1@h-partners.com> - 1.6.37-4
+* Thu Dec 15 2022 zhouwenpei <zhouwenpei1@h-partners.com> - 1.6.38-2
 - remove example.c from help
+
+* Thu Nov 03 2022 zhouwenpei <zhouwenpei1@h-partners.com> - 1.6.38-1
+- update 1.6.38
 
 * Tue Mar 29 2022 liuyumeng <liuyumeng5@h-partners.com> - 1.6.37-3
 - enable test and fix failed tests
