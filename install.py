@@ -74,8 +74,8 @@ def main():
     libpng_path.add_argument('--gen-dir', help='generate path of log', required=True)
     libpng_path.add_argument('--source-dir', help='generate path of log', required=True)
     args = libpng_path.parse_args()
-    tar_file_path = os.path.join(args.source_dir, "libpng-1.6.37.tar.gz")
-    target_dir = os.path.join(args.gen_dir, "libpng-1.6.37")
+    tar_file_path = os.path.join(args.source_dir, "libpng-1.6.38.tar.gz")
+    target_dir = os.path.join(args.gen_dir, "libpng-1.6.38")
 
     untar_file(tar_file_path, args.gen_dir)
     move_file(args.source_dir, target_dir)

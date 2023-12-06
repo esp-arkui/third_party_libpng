@@ -10,7 +10,7 @@ index 4fb0778..930bf50 100644
           AC_DEFINE([PNG_ARM_NEON_OPT], [0],
                     [Disable ARM Neon optimizations])
           # Prevent inclusion of the assembler files below:
-          enable_arm_neon=no;;
+          enable_arm_neon=no ;;
        check)
 +         AC_DEFINE([PNG_ARM_NEON], [], [ARM NEON support])
           AC_DEFINE([PNG_ARM_NEON_CHECK_SUPPORTED], [],
