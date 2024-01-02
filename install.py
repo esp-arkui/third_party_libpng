@@ -37,7 +37,8 @@ def move_file(src_path, dst_path):
         "libpng-fix-arm-neon.patch",
         "libpng-multilib.patch",
         "backport-libpng-1.6.37-enable-valid.patch",
-        "pnglibconf.h"
+        "pnglibconf.h",
+        "CVE-2018-14048.patch"
     ]
     for file in files:
         src_file = os.path.join(src_path, file)
@@ -63,6 +64,7 @@ def do_patch(target_dir):
         "libpng-fix-arm-neon.patch",
         "libpng-multilib.patch",
         "backport-libpng-1.6.37-enable-valid.patch",
+        "CVE-2018-14048.patch"
     ]
 
     for patch in patch_file:
