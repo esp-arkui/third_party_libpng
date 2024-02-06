@@ -31,7 +31,15 @@
         },
         "build": {
             "sub_component": [],
-            "inner_kits": [],
+            "inner_kits": [
+            {
+                "type": "so",
+                "name": "//third_party/libpng:libpng",
+                "header": {
+                    "header_files": [],
+                    "header_base": "//third_party/libpng"
+                }
+            }],
             "test": []
         }
     }
