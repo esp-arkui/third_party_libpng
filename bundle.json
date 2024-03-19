@@ -33,8 +33,7 @@
             "sub_component": [],
             "inner_kits": [
             {
-                "type": "so",
-                "name": "//third_party/libpng:libpng",
+                "name": "//third_party/libpng:libpng_static",
                 "header": {
                     "header_files": [],
                     "header_base": "//third_party/libpng"
