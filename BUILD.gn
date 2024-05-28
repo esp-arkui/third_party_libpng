@@ -77,10 +77,8 @@ if (defined(ohos_lite)) {
 
   ohos_source_set("png_static") {
     sources = get_target_outputs(":libpng_action")
-    include_dirs = [
-      "${target_gen_dir}/libpng-1.6.38/",
-      "//third_party/zlib",
-    ]
+    include_dirs = [ "${target_gen_dir}/libpng-1.6.38/" ]
+    external_deps = [ "zlib:libz" ]
     deps = [ ":libpng_action" ]
     public_configs = [ ":libpng_config" ]
     part_name = "libpng"
@@ -108,12 +106,9 @@ if (defined(ohos_lite)) {
   ohos_static_library("libpng_static") {
     sources = get_target_outputs(":libpng_action")
 
-    include_dirs = [
-      "${target_gen_dir}/libpng-1.6.38/",
-      "//third_party/zlib",
-    ]
-    deps = [ "//third_party/zlib:libz" ]
-    deps += [ ":libpng_action" ]
+    include_dirs = [ "${target_gen_dir}/libpng-1.6.38/" ]
+    external_deps = [ "zlib:libz" ]
+    deps = [ ":libpng_action" ]
     public_configs = [ ":libpng_config" ]
     configs = [ ":libpng_wno_config" ]
     part_name = "libpng"
