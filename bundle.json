@@ -27,19 +27,25 @@
         "ram": "",
         "deps": {
             "components": [],
-            "third_party": ["zlib"]
+            "third_party": [
+                "zlib"
+            ]
         },
         "build": {
             "sub_component": [],
             "inner_kits": [
-            {
-                "type": "so",
-                "name": "//third_party/libpng:libpng",
-                "header": {
-                    "header_files": [],
-                    "header_base": "//third_party/libpng"
+                {
+                    "type": "so",
+                    "name": "//third_party/libpng:libpng",
+                    "header": {
+                        "header_files": [],
+                        "header_base": "//third_party/libpng"
+                    }
+                },
+                {
+                    "name": "//third_party/libpng:libpng_static"
                 }
-            }],
+            ],
             "test": []
         }
     }
