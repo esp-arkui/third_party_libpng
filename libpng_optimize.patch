@@ -1,0 +1,2263 @@
+diff --git a/arm/arm_init.c b/arm/arm_init.c
+index ab22525..af40b2b 100644
+--- a/arm/arm_init.c
++++ b/arm/arm_init.c
+@@ -115,13 +115,21 @@ png_init_filter_functions_neon(png_structp pp, unsigned int bpp)
+     * initialization function.)
+     */
+    pp->read_filter[PNG_FILTER_VALUE_UP-1] = png_read_filter_row_up_neon;
+-
++#ifdef PNG_MULTY_LINE_ENABLE
++   pp->read_filter[PNG_FILTER_VALUE_UP_X2-1] = png_read_filter_row_up_x2_neon;
++#endif
+    if (bpp == 3)
+    {
+       pp->read_filter[PNG_FILTER_VALUE_SUB-1] = png_read_filter_row_sub3_neon;
+       pp->read_filter[PNG_FILTER_VALUE_AVG-1] = png_read_filter_row_avg3_neon;
+       pp->read_filter[PNG_FILTER_VALUE_PAETH-1] =
+          png_read_filter_row_paeth3_neon;
++#ifdef PNG_MULTY_LINE_ENABLE
++      pp->read_filter[PNG_FILTER_VALUE_AVG_X2-1] =
++         png_read_filter_row_avg3_x2_neon;
++      pp->read_filter[PNG_FILTER_VALUE_PAETH_X2-1] =
++         png_read_filter_row_paeth3_x2_neon;
++#endif
+    }
+ 
+    else if (bpp == 4)
+@@ -130,6 +138,12 @@ png_init_filter_functions_neon(png_structp pp, unsigned int bpp)
+       pp->read_filter[PNG_FILTER_VALUE_AVG-1] = png_read_filter_row_avg4_neon;
+       pp->read_filter[PNG_FILTER_VALUE_PAETH-1] =
+           png_read_filter_row_paeth4_neon;
++#ifdef PNG_MULTY_LINE_ENABLE
++      pp->read_filter[PNG_FILTER_VALUE_AVG_X2-1] =
++         png_read_filter_row_avg4_x2_neon;
++      pp->read_filter[PNG_FILTER_VALUE_PAETH_X2-1] =
++         png_read_filter_row_paeth4_x2_neon;
++#endif
+    }
+ }
+ #endif /* PNG_ARM_NEON_OPT > 0 */
+diff --git a/arm/filter_neon_intrinsics.c b/arm/filter_neon_intrinsics.c
+index 4466d48..f11286a 100644
+--- a/arm/filter_neon_intrinsics.c
++++ b/arm/filter_neon_intrinsics.c
+@@ -52,21 +52,90 @@ png_read_filter_row_up_neon(png_row_infop row_info, png_bytep row,
+    png_const_bytep prev_row)
+ {
+    png_bytep rp = row;
+-   png_bytep rp_stop = row + row_info->rowbytes;
+    png_const_bytep pp = prev_row;
++   int count = row_info->rowbytes;
+ 
+    png_debug(1, "in png_read_filter_row_up_neon");
+ 
+-   for (; rp < rp_stop; rp += 16, pp += 16)
+-   {
+-      uint8x16_t qrp, qpp;
++   uint8x16_t qrp, qpp;
++   while (count >= 16) {
++      qrp = vld1q_u8(rp);
++      qpp = vld1q_u8(pp);
++      qrp = vaddq_u8(qrp, qpp);
++      vst1q_u8(rp, qrp);
++      rp += 16;
++      pp += 16;
++      count -= 16;
++   }
++
++   if (count >= 8) {
++      uint8x8_t qrp1, qpp1;
++      qrp1 = vld1_u8(rp);
++      qpp1 = vld1_u8(pp);
++      qrp1 = vadd_u8(qrp1, qpp1);
++      vst1_u8(rp, qrp1);
++      rp += 8;
++      pp += 8;
++      count -= 8;
++   }
++
++   int i = 0;
++   for (i = 0; i < count; i++) {
++      *rp = (png_byte)(((int)(*rp) + (int)(*pp++)) & 0xff);
++      rp++;
++   }
++}
++
++#ifdef PNG_MULTY_LINE_ENABLE
++void
++png_read_filter_row_up_x2_neon(png_row_infop row_info, png_bytep row,
++   png_const_bytep prev_row)
++{
++   png_bytep rp = row;
++   png_const_bytep pp = prev_row;
++   int count = row_info->rowbytes;
++   png_bytep np = row + row_info->rowbytes + 1;
++
++   png_debug(1, "in png_read_filter_row_up_x2_neon");
+ 
++   uint8x16_t qrp, qpp, qnp;
++   while (count >= 16) {
+       qrp = vld1q_u8(rp);
+       qpp = vld1q_u8(pp);
++      qnp = vld1q_u8(np);
+       qrp = vaddq_u8(qrp, qpp);
++      qnp = vaddq_u8(qnp, qrp);
+       vst1q_u8(rp, qrp);
++      vst1q_u8(np, qnp);
++      rp += 16;
++      pp += 16;
++      np += 16;
++      count -= 16;
++   }
++
++   if (count >= 8) {
++      uint8x8_t qrp1, qpp1, qnp1;
++      qrp1 = vld1_u8(rp);
++      qpp1 = vld1_u8(pp);
++      qnp1 = vld1_u8(np);
++      qrp1 = vadd_u8(qrp1, qpp1);
++      qnp1 = vadd_u8(qnp1, qrp1);
++      vst1_u8(rp, qrp1);
++      vst1_u8(np, qnp1);
++      rp += 8;
++      pp += 8;
++      np += 8;
++      count -= 8;
++   }
++
++   int i = 0;
++   for (i = 0; i < count; i++) {
++      *rp = (png_byte)(((int)(*rp) + (int)(*pp++)) & 0xff);
++      *np = (png_byte)(((int)(*np) + (int)(*rp++)) & 0xff);
++      np++;
+    }
+ }
++#endif
+ 
+ void
+ png_read_filter_row_sub3_neon(png_row_infop row_info, png_bytep row,
+@@ -82,13 +151,16 @@ png_read_filter_row_sub3_neon(png_row_infop row_info, png_bytep row,
+    uint8x8x4_t vdest;
+    vdest.val[3] = vdup_n_u8(0);
+ 
++   uint8x8_t vtmp1, vtmp2;
++   uint32x2_t *temp_pointer;
++
+    png_debug(1, "in png_read_filter_row_sub3_neon");
+ 
+-   for (; rp < rp_stop;)
++   size_t tail_bytes = row_info->rowbytes % 12;
++   png_byte last_byte = *rp_stop;
++   png_bytep rp_stop_new = rp_stop - tail_bytes;
++   for (; rp < rp_stop_new;)
+    {
+-      uint8x8_t vtmp1, vtmp2;
+-      uint32x2_t *temp_pointer;
+-
+       vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 3);
+       vdest.val[0] = vadd_u8(vdest.val[3], vrp.val[0]);
+       vtmp2 = vext_u8(vrp.val[0], vrp.val[1], 6);
+@@ -112,6 +184,32 @@ png_read_filter_row_sub3_neon(png_row_infop row_info, png_bytep row,
+       rp += 3;
+    }
+ 
++   if (tail_bytes == 3) {
++      vdest.val[0] = vadd_u8(vdest.val[3], vrp.val[0]);
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++   } else if (tail_bytes == 6) {
++      vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 3);
++      vdest.val[0] = vadd_u8(vdest.val[3], vrp.val[0]);
++      vdest.val[1] = vadd_u8(vdest.val[0], vtmp1);
++
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[1]), 0);
++   } else if (tail_bytes == 9) {
++      vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 3);
++      vdest.val[0] = vadd_u8(vdest.val[3], vrp.val[0]);
++      vtmp2 = vext_u8(vrp.val[0], vrp.val[1], 6);
++      vdest.val[1] = vadd_u8(vdest.val[0], vtmp1);
++      vdest.val[2] = vadd_u8(vdest.val[1], vtmp2);
++
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[1]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[2]), 0);
++   }
++   *rp_stop = last_byte;
++
+    PNG_UNUSED(prev_row)
+ }
+ 
+@@ -120,20 +218,22 @@ png_read_filter_row_sub4_neon(png_row_infop row_info, png_bytep row,
+    png_const_bytep prev_row)
+ {
+    png_bytep rp = row;
+-   png_bytep rp_stop = row + row_info->rowbytes;
++   int count = row_info->rowbytes;
+ 
+    uint8x8x4_t vdest;
+    vdest.val[3] = vdup_n_u8(0);
+ 
+    png_debug(1, "in png_read_filter_row_sub4_neon");
+ 
+-   for (; rp < rp_stop; rp += 16)
+-   {
+-      uint32x2x4_t vtmp = vld4_u32(png_ptr(uint32_t,rp));
+-      uint8x8x4_t *vrpt = png_ptr(uint8x8x4_t,&vtmp);
+-      uint8x8x4_t vrp = *vrpt;
++   uint32x2x4_t vtmp;
++   uint8x8x4_t *vrpt;
++   uint8x8x4_t vrp;
++   uint32x2x4_t vdest_val;
++   while (count >= 16) {
+       uint32x2x4_t *temp_pointer;
+-      uint32x2x4_t vdest_val;
++      vtmp = vld4_u32(png_ptr(uint32_t,rp));
++      vrpt = png_ptr(uint8x8x4_t,&vtmp);
++      vrp = *vrpt;
+ 
+       vdest.val[0] = vadd_u8(vdest.val[3], vrp.val[0]);
+       vdest.val[1] = vadd_u8(vdest.val[0], vrp.val[1]);
+@@ -142,8 +242,42 @@ png_read_filter_row_sub4_neon(png_row_infop row_info, png_bytep row,
+ 
+       vdest_val = png_ldr(uint32x2x4_t, &vdest);
+       vst4_lane_u32(png_ptr(uint32_t,rp), vdest_val, 0);
++
++      rp += 16;
++      count -= 16;
+    }
+ 
++   if (count >= 8) {
++      uint32x2x2_t vtmp1 = vld2_u32(png_ptr(uint32_t,rp));
++      uint8x8x2_t *vrpt1 = png_ptr(uint8x8x2_t,&vtmp1);
++      uint8x8x2_t vrp1 = *vrpt1;
++      uint32x2x2_t *temp_pointer;
++      uint32x2x2_t vdest_val1;
++
++      vdest.val[0] = vadd_u8(vdest.val[3], vrp1.val[0]);
++      vdest.val[1] = vadd_u8(vdest.val[0], vrp1.val[1]);
++
++      vdest_val1 = png_ldr(uint32x2x2_t, &vdest);
++      vst2_lane_u32(png_ptr(uint32_t,rp), vdest_val1, 0);
++
++      rp += 8;
++      count -= 8;
++   }
++
++   if (count == 0) {
++      return;
++   }
++
++   uint32x2_t vtmp2 = vld1_u32(png_ptr(uint32_t,rp));
++   uint8x8_t *vrpt2 = png_ptr(uint8x8_t,&vtmp2);
++   uint8x8_t vrp2 = *vrpt2;
++   uint32x2_t *temp_pointer;
++   uint32x2_t vdest_val2;
++
++   vdest.val[0] = vadd_u8(vdest.val[1], vrp2);
++   vdest_val2 = png_ldr(uint32x2_t, &vdest);
++   vst1_lane_u32(png_ptr(uint32_t,rp), vdest_val2, 0);
++
+    PNG_UNUSED(prev_row)
+ }
+ 
+@@ -167,15 +301,140 @@ png_read_filter_row_avg3_neon(png_row_infop row_info, png_bytep row,
+ 
+    png_debug(1, "in png_read_filter_row_avg3_neon");
+ 
+-   for (; rp < rp_stop; pp += 12)
++   uint8x8_t vtmp1, vtmp2, vtmp3;
++   uint8x8x2_t *vppt;
++   uint8x8x2_t vpp;
++   uint32x2_t *temp_pointer;
++
++   size_t tail_bytes = row_info->rowbytes % 12;
++   png_byte last_byte = *rp_stop;
++   png_bytep rp_stop_new = rp_stop - tail_bytes;
++   for (; rp < rp_stop_new; pp += 12)
+    {
+-      uint8x8_t vtmp1, vtmp2, vtmp3;
++      vtmp = vld1q_u8(pp);
++      vppt = png_ptr(uint8x8x2_t,&vtmp);
++      vpp = *vppt;
++
++      vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 3);
++      vdest.val[0] = vhadd_u8(vdest.val[3], vpp.val[0]);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
++
++      vtmp2 = vext_u8(vpp.val[0], vpp.val[1], 3);
++      vtmp3 = vext_u8(vrp.val[0], vrp.val[1], 6);
++      vdest.val[1] = vhadd_u8(vdest.val[0], vtmp2);
++      vdest.val[1] = vadd_u8(vdest.val[1], vtmp1);
++
++      vtmp2 = vext_u8(vpp.val[0], vpp.val[1], 6);
++      vtmp1 = vext_u8(vrp.val[1], vrp.val[1], 1);
++
++      vtmp = vld1q_u8(rp + 12);
++      vrpt = png_ptr(uint8x8x2_t,&vtmp);
++      vrp = *vrpt;
++
++      vdest.val[2] = vhadd_u8(vdest.val[1], vtmp2);
++      vdest.val[2] = vadd_u8(vdest.val[2], vtmp3);
++
++      vtmp2 = vext_u8(vpp.val[1], vpp.val[1], 1);
++
++      vdest.val[3] = vhadd_u8(vdest.val[2], vtmp2);
++      vdest.val[3] = vadd_u8(vdest.val[3], vtmp1);
++
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[1]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[2]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[3]), 0);
++      rp += 3;
++   }
++
++   vtmp = vld1q_u8(pp);
++   vppt = png_ptr(uint8x8x2_t,&vtmp);
++   vpp = *vppt;
++
++   if (tail_bytes == 3) {
++      vdest.val[0] = vhadd_u8(vdest.val[3], vpp.val[0]);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++   } else if (tail_bytes == 6) {
++      vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 3);
++      vdest.val[0] = vhadd_u8(vdest.val[3], vpp.val[0]);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
++
++      vtmp2 = vext_u8(vpp.val[0], vpp.val[1], 3);
++      vdest.val[1] = vhadd_u8(vdest.val[0], vtmp2);
++      vdest.val[1] = vadd_u8(vdest.val[1], vtmp1);
++
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[1]), 0);
++   } else if (tail_bytes == 9) {
++      vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 3);
++      vdest.val[0] = vhadd_u8(vdest.val[3], vpp.val[0]);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
++
++      vtmp2 = vext_u8(vpp.val[0], vpp.val[1], 3);
++      vtmp3 = vext_u8(vrp.val[0], vrp.val[1], 6);
++      vdest.val[1] = vhadd_u8(vdest.val[0], vtmp2);
++      vdest.val[1] = vadd_u8(vdest.val[1], vtmp1);
++
++      vtmp2 = vext_u8(vpp.val[0], vpp.val[1], 6);
++
++      vdest.val[2] = vhadd_u8(vdest.val[1], vtmp2);
++      vdest.val[2] = vadd_u8(vdest.val[2], vtmp3);
++
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[1]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[2]), 0);
++   }
++   *rp_stop = last_byte;
++}
++
++#ifdef PNG_MULTY_LINE_ENABLE
++void
++png_read_filter_row_avg3_x2_neon(png_row_infop row_info, png_bytep row,
++   png_const_bytep prev_row)
++{
++   png_bytep rp = row;
++   png_const_bytep pp = prev_row;
++   png_bytep rp_stop = row + row_info->rowbytes;
++   png_bytep np = rp_stop + 1;
++
++   uint8x16_t vtmp;
++   uint8x8x2_t *vrpt;
++   uint8x8x2_t vrp;
++   uint8x8x4_t vdest;
++   vdest.val[3] = vdup_n_u8(0);
++
++   vtmp = vld1q_u8(rp);
++   vrpt = png_ptr(uint8x8x2_t,&vtmp);
++   vrp = *vrpt;
++
++   uint8x8x2_t *vnpt;
++   uint8x8x2_t vnp;
++   uint8x8x4_t vdestN;
++   vdestN.val[3] = vdup_n_u8(0);
++
++   vtmp = vld1q_u8(np);
++   vnpt = png_ptr(uint8x8x2_t,&vtmp);
++   vnp = *vnpt;
+ 
+-      uint8x8x2_t *vppt;
+-      uint8x8x2_t vpp;
++   png_debug(1, "in png_read_filter_row_x2_avg3_neon");
+ 
+-      uint32x2_t *temp_pointer;
++   uint8x8_t vtmp1, vtmp2, vtmp3;
++   uint8x8x2_t *vppt;
++   uint8x8x2_t vpp;
++   uint32x2_t *temp_pointer;
+ 
++   size_t tail_bytes = row_info->rowbytes % 12;
++   png_byte last_byte = *rp_stop;
++   png_byte last_byte_next = *(rp_stop + row_info->rowbytes + 1);
++   png_bytep rp_stop_new = rp_stop - tail_bytes;
++   for (; rp < rp_stop_new; pp += 12)
++   {
+       vtmp = vld1q_u8(pp);
+       vppt = png_ptr(uint8x8x2_t,&vtmp);
+       vpp = *vppt;
+@@ -212,36 +471,245 @@ png_read_filter_row_avg3_neon(png_row_infop row_info, png_bytep row,
+       rp += 3;
+       vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[3]), 0);
+       rp += 3;
++
++      vtmp1 = vext_u8(vnp.val[0], vnp.val[1], 3);
++      vdestN.val[0] = vhadd_u8(vdestN.val[3], vdest.val[0]);
++      vdestN.val[0] = vadd_u8(vdestN.val[0], vnp.val[0]);
++
++      vtmp3 = vext_u8(vnp.val[0], vnp.val[1], 6);
++      vdestN.val[1] = vhadd_u8(vdestN.val[0], vdest.val[1]);
++      vdestN.val[1] = vadd_u8(vdestN.val[1], vtmp1);
++
++      vtmp1 = vext_u8(vnp.val[1], vnp.val[1], 1);
++
++      vtmp = vld1q_u8(np + 12);
++      vnpt = png_ptr(uint8x8x2_t,&vtmp);
++      vnp = *vnpt;
++
++      vdestN.val[2] = vhadd_u8(vdestN.val[1], vdest.val[2]);
++      vdestN.val[2] = vadd_u8(vdestN.val[2], vtmp3);
++
++      vdestN.val[3] = vhadd_u8(vdestN.val[2], vdest.val[3]);
++      vdestN.val[3] = vadd_u8(vdestN.val[3], vtmp1);
++
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[0]), 0);
++      np += 3;
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[1]), 0);
++      np += 3;
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[2]), 0);
++      np += 3;
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[3]), 0);
++      np += 3;
+    }
++
++   vtmp = vld1q_u8(pp);
++   vppt = png_ptr(uint8x8x2_t,&vtmp);
++   vpp = *vppt;
++
++   if (tail_bytes == 3) {
++      vdest.val[0] = vhadd_u8(vdest.val[3], vpp.val[0]);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++
++      vdestN.val[0] = vhadd_u8(vdestN.val[3], vdest.val[0]);
++      vdestN.val[0] = vadd_u8(vdestN.val[0], vnp.val[0]);
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[0]), 0);
++   } else if (tail_bytes == 6) {
++      vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 3);
++      vdest.val[0] = vhadd_u8(vdest.val[3], vpp.val[0]);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
++
++      vtmp2 = vext_u8(vpp.val[0], vpp.val[1], 3);
++      vdest.val[1] = vhadd_u8(vdest.val[0], vtmp2);
++      vdest.val[1] = vadd_u8(vdest.val[1], vtmp1);
++
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[1]), 0);
++
++      vtmp1 = vext_u8(vnp.val[0], vnp.val[1], 3);
++      vdestN.val[0] = vhadd_u8(vdestN.val[3], vdest.val[0]);
++      vdestN.val[0] = vadd_u8(vdestN.val[0], vnp.val[0]);
++
++      vdestN.val[1] = vhadd_u8(vdestN.val[0], vdest.val[1]);
++      vdestN.val[1] = vadd_u8(vdestN.val[1], vtmp1);
++
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[0]), 0);
++      np += 3;
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[1]), 0);
++   } else if (tail_bytes == 9) {
++      vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 3);
++      vdest.val[0] = vhadd_u8(vdest.val[3], vpp.val[0]);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
++
++      vtmp2 = vext_u8(vpp.val[0], vpp.val[1], 3);
++      vtmp3 = vext_u8(vrp.val[0], vrp.val[1], 6);
++      vdest.val[1] = vhadd_u8(vdest.val[0], vtmp2);
++      vdest.val[1] = vadd_u8(vdest.val[1], vtmp1);
++
++      vtmp2 = vext_u8(vpp.val[0], vpp.val[1], 6);
++
++      vdest.val[2] = vhadd_u8(vdest.val[1], vtmp2);
++      vdest.val[2] = vadd_u8(vdest.val[2], vtmp3);
++
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[1]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[2]), 0);
++
++      vtmp1 = vext_u8(vnp.val[0], vnp.val[1], 3);
++      vdestN.val[0] = vhadd_u8(vdestN.val[3], vdest.val[0]);
++      vdestN.val[0] = vadd_u8(vdestN.val[0], vnp.val[0]);
++
++      vtmp3 = vext_u8(vnp.val[0], vnp.val[1], 6);
++      vdestN.val[1] = vhadd_u8(vdestN.val[0], vdest.val[1]);
++      vdestN.val[1] = vadd_u8(vdestN.val[1], vtmp1);
++
++      vdestN.val[2] = vhadd_u8(vdestN.val[1], vdest.val[2]);
++      vdestN.val[2] = vadd_u8(vdestN.val[2], vtmp3);
++
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[0]), 0);
++      np += 3;
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[1]), 0);
++      np += 3;
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[2]), 0);
++   }
++   *rp_stop = last_byte;
++   *(rp_stop + row_info->rowbytes + 1) = last_byte_next;
+ }
++#endif
+ 
+ void
+ png_read_filter_row_avg4_neon(png_row_infop row_info, png_bytep row,
+    png_const_bytep prev_row)
+ {
+    png_bytep rp = row;
+-   png_bytep rp_stop = row + row_info->rowbytes;
+    png_const_bytep pp = prev_row;
++   int count = row_info->rowbytes;
+ 
+    uint8x8x4_t vdest;
+    vdest.val[3] = vdup_n_u8(0);
+ 
+    png_debug(1, "in png_read_filter_row_avg4_neon");
+ 
+-   for (; rp < rp_stop; rp += 16, pp += 16)
+-   {
+-      uint32x2x4_t vtmp;
+-      uint8x8x4_t *vrpt, *vppt;
+-      uint8x8x4_t vrp, vpp;
++   uint32x2x4_t vtmp;
++   uint8x8x4_t *vrpt, *vppt;
++   uint8x8x4_t vrp, vpp;
++   uint32x2x4_t vdest_val;
++   while (count >= 16) {
+       uint32x2x4_t *temp_pointer;
+-      uint32x2x4_t vdest_val;
++      vtmp = vld4_u32(png_ptr(uint32_t,rp));
++      vrpt = png_ptr(uint8x8x4_t,&vtmp);
++      vrp = *vrpt;
++      vtmp = vld4_u32(png_ptrc(uint32_t,pp));
++      vppt = png_ptr(uint8x8x4_t,&vtmp);
++      vpp = *vppt;
++
++      vdest.val[0] = vhadd_u8(vdest.val[3], vpp.val[0]);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
++      vdest.val[1] = vhadd_u8(vdest.val[0], vpp.val[1]);
++      vdest.val[1] = vadd_u8(vdest.val[1], vrp.val[1]);
++      vdest.val[2] = vhadd_u8(vdest.val[1], vpp.val[2]);
++      vdest.val[2] = vadd_u8(vdest.val[2], vrp.val[2]);
++      vdest.val[3] = vhadd_u8(vdest.val[2], vpp.val[3]);
++      vdest.val[3] = vadd_u8(vdest.val[3], vrp.val[3]);
++
++      vdest_val = png_ldr(uint32x2x4_t, &vdest);
++      vst4_lane_u32(png_ptr(uint32_t,rp), vdest_val, 0);
++
++      rp += 16;
++      pp += 16;
++      count -= 16;
++   }
++
++   if (count >= 8) {
++      uint32x2x2_t vtmp1;
++      uint8x8x2_t *vrpt1, *vppt1;
++      uint8x8x2_t vrp1, vpp1;
++      uint32x2x2_t *temp_pointer;
++      uint32x2x2_t vdest_val1;
++
++      vtmp1 = vld2_u32(png_ptr(uint32_t,rp));
++      vrpt1 = png_ptr(uint8x8x2_t,&vtmp1);
++      vrp1 = *vrpt1;
++      vtmp1 = vld2_u32(png_ptrc(uint32_t,pp));
++      vppt1 = png_ptr(uint8x8x2_t,&vtmp1);
++      vpp1 = *vppt1;
++
++      vdest.val[0] = vhadd_u8(vdest.val[3], vpp1.val[0]);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp1.val[0]);
++      vdest.val[1] = vhadd_u8(vdest.val[0], vpp1.val[1]);
++      vdest.val[1] = vadd_u8(vdest.val[1], vrp1.val[1]);
++
++      vdest_val1 = png_ldr(uint32x2x2_t, &vdest);
++      vst2_lane_u32(png_ptr(uint32_t,rp), vdest_val1, 0);
++
++      rp += 8;
++      pp += 8;
++      count -= 8;
++   }
++
++   if (count == 0) {
++      return;
++   }
++
++   uint32x2_t vtmp2;
++   uint8x8_t *vrpt2, *vppt2;
++   uint8x8_t vrp2, vpp2;
++   uint32x2_t *temp_pointer;
++   uint32x2_t vdest_val2;
++
++   vtmp2 = vld1_u32(png_ptr(uint32_t,rp));
++   vrpt2 = png_ptr(uint8x8_t,&vtmp2);
++   vrp2 = *vrpt2;
++   vtmp2 = vld1_u32(png_ptrc(uint32_t,pp));
++   vppt2 = png_ptr(uint8x8_t,&vtmp2);
++   vpp2 = *vppt2;
+ 
++   vdest.val[0] = vhadd_u8(vdest.val[1], vpp2);
++   vdest.val[0] = vadd_u8(vdest.val[0], vrp2);
++
++   vdest_val2 = png_ldr(uint32x2_t, &vdest);
++   vst1_lane_u32(png_ptr(uint32_t,rp), vdest_val2, 0);
++}
++
++#ifdef PNG_MULTY_LINE_ENABLE
++void
++png_read_filter_row_avg4_x2_neon(png_row_infop row_info, png_bytep row,
++   png_const_bytep prev_row)
++{
++   png_bytep rp = row;
++   png_const_bytep pp = prev_row;
++   int count = row_info->rowbytes;
++   png_bytep np = row + count + 1;
++
++   uint8x8x4_t vdest;
++   vdest.val[3] = vdup_n_u8(0);
++
++   png_debug(1, "in png_read_filter_row_avg4_x2_neon");
++
++   uint32x2x4_t vtmp;
++   uint8x8x4_t *vrpt, *vppt;
++   uint8x8x4_t vrp, vpp;
++   uint32x2x4_t vdest_val;
++
++   uint8x8x4_t *vnpt;
++   uint8x8x4_t vnp;
++   uint8x8x4_t vdestN;
++   vdestN.val[3] = vdup_n_u8(0);
++
++   while (count >= 16) {
++      uint32x2x4_t *temp_pointer;
+       vtmp = vld4_u32(png_ptr(uint32_t,rp));
+       vrpt = png_ptr(uint8x8x4_t,&vtmp);
+       vrp = *vrpt;
+       vtmp = vld4_u32(png_ptrc(uint32_t,pp));
+       vppt = png_ptr(uint8x8x4_t,&vtmp);
+       vpp = *vppt;
++      vtmp = vld4_u32(png_ptrc(uint32_t,np));
++      vnpt = png_ptr(uint8x8x4_t,&vtmp);
++      vnp = *vnpt;
+ 
+       vdest.val[0] = vhadd_u8(vdest.val[3], vpp.val[0]);
+       vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
+@@ -254,8 +722,97 @@ png_read_filter_row_avg4_neon(png_row_infop row_info, png_bytep row,
+ 
+       vdest_val = png_ldr(uint32x2x4_t, &vdest);
+       vst4_lane_u32(png_ptr(uint32_t,rp), vdest_val, 0);
++
++      vdestN.val[0] = vhadd_u8(vdestN.val[3], vdest.val[0]);
++      vdestN.val[0] = vadd_u8(vdestN.val[0], vnp.val[0]);
++      vdestN.val[1] = vhadd_u8(vdestN.val[0], vdest.val[1]);
++      vdestN.val[1] = vadd_u8(vdestN.val[1], vnp.val[1]);
++      vdestN.val[2] = vhadd_u8(vdestN.val[1], vdest.val[2]);
++      vdestN.val[2] = vadd_u8(vdestN.val[2], vnp.val[2]);
++      vdestN.val[3] = vhadd_u8(vdestN.val[2], vdest.val[3]);
++      vdestN.val[3] = vadd_u8(vdestN.val[3], vnp.val[3]);
++
++      vdest_val = png_ldr(uint32x2x4_t, &vdestN);
++      vst4_lane_u32(png_ptr(uint32_t,np), vdest_val, 0);
++
++      rp += 16;
++      pp += 16;
++      np += 16;
++      count -= 16;
++   }
++
++   if (count >= 8) {
++      uint32x2x2_t vtmp1;
++      uint8x8x2_t *vrpt1, *vppt1, *vnpt1;
++      uint8x8x2_t vrp1, vpp1, vnp1;
++      uint32x2x2_t *temp_pointer;
++      uint32x2x2_t vdest_val1;
++
++      vtmp1 = vld2_u32(png_ptr(uint32_t,rp));
++      vrpt1 = png_ptr(uint8x8x2_t,&vtmp1);
++      vrp1 = *vrpt1;
++      vtmp1 = vld2_u32(png_ptrc(uint32_t,pp));
++      vppt1 = png_ptr(uint8x8x2_t,&vtmp1);
++      vpp1 = *vppt1;
++      vtmp1 = vld2_u32(png_ptrc(uint32_t,np));
++      vnpt1 = png_ptr(uint8x8x2_t,&vtmp1);
++      vnp1 = *vnpt1;
++
++      vdest.val[0] = vhadd_u8(vdest.val[3], vpp1.val[0]);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp1.val[0]);
++      vdest.val[1] = vhadd_u8(vdest.val[0], vpp1.val[1]);
++      vdest.val[1] = vadd_u8(vdest.val[1], vrp1.val[1]);
++
++      vdest_val1 = png_ldr(uint32x2x2_t, &vdest);
++      vst2_lane_u32(png_ptr(uint32_t,rp), vdest_val1, 0);
++
++      vdestN.val[0] = vhadd_u8(vdestN.val[3], vdest.val[0]);
++      vdestN.val[0] = vadd_u8(vdestN.val[0], vnp1.val[0]);
++      vdestN.val[1] = vhadd_u8(vdestN.val[0], vdest.val[1]);
++      vdestN.val[1] = vadd_u8(vdestN.val[1], vnp1.val[1]);
++
++      vdest_val1 = png_ldr(uint32x2x2_t, &vdestN);
++      vst2_lane_u32(png_ptr(uint32_t,np), vdest_val1, 0);
++
++      rp += 8;
++      pp += 8;
++      np += 8;
++      count -= 8;
+    }
++
++   if (count == 0) {
++      return;
++   }
++
++   uint32x2_t vtmp2;
++   uint8x8_t *vrpt2, *vppt2, *vnpt2;
++   uint8x8_t vrp2, vpp2, vnp2;
++   uint32x2_t *temp_pointer;
++   uint32x2_t vdest_val2;
++
++   vtmp2 = vld1_u32(png_ptr(uint32_t,rp));
++   vrpt2 = png_ptr(uint8x8_t,&vtmp2);
++   vrp2 = *vrpt2;
++   vtmp2 = vld1_u32(png_ptrc(uint32_t,pp));
++   vppt2 = png_ptr(uint8x8_t,&vtmp2);
++   vpp2 = *vppt2;
++   vtmp2 = vld1_u32(png_ptrc(uint32_t,np));
++   vnpt2 = png_ptr(uint8x8_t,&vtmp2);
++   vnp2 = *vnpt2;
++
++   vdest.val[0] = vhadd_u8(vdest.val[1], vpp2);
++   vdest.val[0] = vadd_u8(vdest.val[0], vrp2);
++
++   vdest_val2 = png_ldr(uint32x2_t, &vdest);
++   vst1_lane_u32(png_ptr(uint32_t,rp), vdest_val2, 0);
++
++   vdestN.val[0] = vhadd_u8(vdestN.val[1], vdest.val[0]);
++   vdestN.val[0] = vadd_u8(vdestN.val[0], vnp2);
++
++   vdest_val2 = png_ldr(uint32x2_t, &vdestN);
++   vst1_lane_u32(png_ptr(uint32_t,np), vdest_val2, 0);
+ }
++#endif
+ 
+ static uint8x8_t
+ paeth(uint8x8_t a, uint8x8_t b, uint8x8_t c)
+@@ -303,15 +860,145 @@ png_read_filter_row_paeth3_neon(png_row_infop row_info, png_bytep row,
+    vrpt = png_ptr(uint8x8x2_t,&vtmp);
+    vrp = *vrpt;
+ 
++   uint8x8x2_t *vppt;
++   uint8x8x2_t vpp;
++   uint8x8_t vtmp1, vtmp2, vtmp3;
++   uint32x2_t *temp_pointer;
++
+    png_debug(1, "in png_read_filter_row_paeth3_neon");
+ 
+-   for (; rp < rp_stop; pp += 12)
++   size_t tail_bytes = row_info->rowbytes % 12;
++   png_byte last_byte = *rp_stop;
++   png_bytep rp_stop_new = rp_stop - tail_bytes;
++   for (; rp < rp_stop_new; pp += 12)
+    {
+-      uint8x8x2_t *vppt;
+-      uint8x8x2_t vpp;
+-      uint8x8_t vtmp1, vtmp2, vtmp3;
+-      uint32x2_t *temp_pointer;
++      vtmp = vld1q_u8(pp);
++      vppt = png_ptr(uint8x8x2_t,&vtmp);
++      vpp = *vppt;
++
++      vdest.val[0] = paeth(vdest.val[3], vpp.val[0], vlast);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
+ 
++      vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 3);
++      vtmp2 = vext_u8(vpp.val[0], vpp.val[1], 3);
++      vdest.val[1] = paeth(vdest.val[0], vtmp2, vpp.val[0]);
++      vdest.val[1] = vadd_u8(vdest.val[1], vtmp1);
++
++      vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 6);
++      vtmp3 = vext_u8(vpp.val[0], vpp.val[1], 6);
++      vdest.val[2] = paeth(vdest.val[1], vtmp3, vtmp2);
++      vdest.val[2] = vadd_u8(vdest.val[2], vtmp1);
++
++      vtmp1 = vext_u8(vrp.val[1], vrp.val[1], 1);
++      vtmp2 = vext_u8(vpp.val[1], vpp.val[1], 1);
++
++      vtmp = vld1q_u8(rp + 12);
++      vrpt = png_ptr(uint8x8x2_t,&vtmp);
++      vrp = *vrpt;
++
++      vdest.val[3] = paeth(vdest.val[2], vtmp2, vtmp3);
++      vdest.val[3] = vadd_u8(vdest.val[3], vtmp1);
++
++      vlast = vtmp2;
++
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[1]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[2]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[3]), 0);
++      rp += 3;
++   }
++
++   vtmp = vld1q_u8(pp);
++   vppt = png_ptr(uint8x8x2_t,&vtmp);
++   vpp = *vppt;
++
++   if (tail_bytes == 3) {
++      vdest.val[0] = paeth(vdest.val[3], vpp.val[0], vlast);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++   } else if (tail_bytes == 6) {
++      vdest.val[0] = paeth(vdest.val[3], vpp.val[0], vlast);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
++
++      vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 3);
++      vtmp2 = vext_u8(vpp.val[0], vpp.val[1], 3);
++      vdest.val[1] = paeth(vdest.val[0], vtmp2, vpp.val[0]);
++      vdest.val[1] = vadd_u8(vdest.val[1], vtmp1);
++
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[1]), 0);
++   } else if (tail_bytes == 9) {
++      vdest.val[0] = paeth(vdest.val[3], vpp.val[0], vlast);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
++
++      vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 3);
++      vtmp2 = vext_u8(vpp.val[0], vpp.val[1], 3);
++      vdest.val[1] = paeth(vdest.val[0], vtmp2, vpp.val[0]);
++      vdest.val[1] = vadd_u8(vdest.val[1], vtmp1);
++
++      vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 6);
++      vtmp3 = vext_u8(vpp.val[0], vpp.val[1], 6);
++      vdest.val[2] = paeth(vdest.val[1], vtmp3, vtmp2);
++      vdest.val[2] = vadd_u8(vdest.val[2], vtmp1);
++
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[1]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[2]), 0);
++   }
++   *rp_stop = last_byte;
++}
++
++#ifdef PNG_MULTY_LINE_ENABLE
++void
++png_read_filter_row_paeth3_x2_neon(png_row_infop row_info, png_bytep row,
++   png_const_bytep prev_row)
++{
++   png_bytep rp = row;
++   png_const_bytep pp = prev_row;
++   png_bytep rp_stop = row + row_info->rowbytes;
++   png_bytep np = rp_stop + 1;
++
++   uint8x16_t vtmp;
++   uint8x8x2_t *vrpt;
++   uint8x8x2_t vrp;
++   uint8x8_t vlast = vdup_n_u8(0);
++   uint8x8x4_t vdest;
++   vdest.val[3] = vdup_n_u8(0);
++
++   vtmp = vld1q_u8(rp);
++   vrpt = png_ptr(uint8x8x2_t,&vtmp);
++   vrp = *vrpt;
++
++   uint8x8x2_t *vppt;
++   uint8x8x2_t vpp;
++   uint8x8_t vtmp1, vtmp2, vtmp3;
++   uint32x2_t *temp_pointer;
++
++   uint8x8x2_t *vnpt;
++   uint8x8x2_t vnp;
++   uint8x8_t vlastN = vdup_n_u8(0);
++   uint8x8x4_t vdestN;
++   vdestN.val[3] = vdup_n_u8(0);
++
++   vtmp = vld1q_u8(np);
++   vnpt = png_ptr(uint8x8x2_t,&vtmp);
++   vnp = *vnpt;
++
++   png_debug(1, "in png_read_filter_row_paeth3_x2_neon");
++
++   size_t tail_bytes = row_info->rowbytes % 12;
++   png_byte last_byte = *rp_stop;
++   png_byte last_byte_next = *(rp_stop + row_info->rowbytes + 1);
++   png_bytep rp_stop_new = rp_stop - tail_bytes;
++   
++   for (; rp < rp_stop_new; pp += 12)
++   {
+       vtmp = vld1q_u8(pp);
+       vppt = png_ptr(uint8x8x2_t,&vtmp);
+       vpp = *vppt;
+@@ -349,15 +1036,123 @@ png_read_filter_row_paeth3_neon(png_row_infop row_info, png_bytep row,
+       rp += 3;
+       vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[3]), 0);
+       rp += 3;
++
++      vdestN.val[0] = paeth(vdestN.val[3], vdest.val[0], vlastN);
++      vdestN.val[0] = vadd_u8(vdestN.val[0], vnp.val[0]);
++
++      vtmp1 = vext_u8(vnp.val[0], vnp.val[1], 3);
++      vdestN.val[1] = paeth(vdestN.val[0], vdest.val[1], vdest.val[0]);
++      vdestN.val[1] = vadd_u8(vdestN.val[1], vtmp1);
++
++      vtmp1 = vext_u8(vnp.val[0], vnp.val[1], 6);
++      vdestN.val[2] = paeth(vdestN.val[1], vdest.val[2], vdest.val[1]);
++      vdestN.val[2] = vadd_u8(vdestN.val[2], vtmp1);
++
++      vtmp1 = vext_u8(vnp.val[1], vnp.val[1], 1);
++
++      vtmp = vld1q_u8(np + 12);
++      vnpt = png_ptr(uint8x8x2_t,&vtmp);
++      vnp = *vnpt;
++
++      vdestN.val[3] = paeth(vdestN.val[2], vdest.val[3], vdest.val[2]);
++      vdestN.val[3] = vadd_u8(vdestN.val[3], vtmp1);
++
++      vlastN = vdest.val[3];
++
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[0]), 0);
++      np += 3;
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[1]), 0);
++      np += 3;
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[2]), 0);
++      np += 3;
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[3]), 0);
++      np += 3;
+    }
++
++   vtmp = vld1q_u8(pp);
++   vppt = png_ptr(uint8x8x2_t,&vtmp);
++   vpp = *vppt;
++
++   if (tail_bytes == 3) {
++      vdest.val[0] = paeth(vdest.val[3], vpp.val[0], vlast);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++
++      vdestN.val[0] = paeth(vdestN.val[3], vdest.val[0], vlastN);
++      vdestN.val[0] = vadd_u8(vdestN.val[0], vnp.val[0]);
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[0]), 0);
++   } else if (tail_bytes == 6) {
++      vdest.val[0] = paeth(vdest.val[3], vpp.val[0], vlast);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
++
++      vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 3);
++      vtmp2 = vext_u8(vpp.val[0], vpp.val[1], 3);
++      vdest.val[1] = paeth(vdest.val[0], vtmp2, vpp.val[0]);
++      vdest.val[1] = vadd_u8(vdest.val[1], vtmp1);
++
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[1]), 0);
++
++      vdestN.val[0] = paeth(vdestN.val[3], vdest.val[0], vlastN);
++      vdestN.val[0] = vadd_u8(vdestN.val[0], vnp.val[0]);
++
++      vtmp1 = vext_u8(vnp.val[0], vnp.val[1], 3);
++      vdestN.val[1] = paeth(vdestN.val[0], vdest.val[1], vdest.val[0]);
++      vdestN.val[1] = vadd_u8(vdestN.val[1], vtmp1);
++
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[0]), 0);
++      np += 3;
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[1]), 0);
++
++   } else if (tail_bytes == 9) {
++      vdest.val[0] = paeth(vdest.val[3], vpp.val[0], vlast);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
++
++      vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 3);
++      vtmp2 = vext_u8(vpp.val[0], vpp.val[1], 3);
++      vdest.val[1] = paeth(vdest.val[0], vtmp2, vpp.val[0]);
++      vdest.val[1] = vadd_u8(vdest.val[1], vtmp1);
++
++      vtmp1 = vext_u8(vrp.val[0], vrp.val[1], 6);
++      vtmp3 = vext_u8(vpp.val[0], vpp.val[1], 6);
++      vdest.val[2] = paeth(vdest.val[1], vtmp3, vtmp2);
++      vdest.val[2] = vadd_u8(vdest.val[2], vtmp1);
++
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[0]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[1]), 0);
++      rp += 3;
++      vst1_lane_u32(png_ptr(uint32_t,rp), png_ldr(uint32x2_t,&vdest.val[2]), 0);
++
++      vdestN.val[0] = paeth(vdestN.val[3], vdest.val[0], vlastN);
++      vdestN.val[0] = vadd_u8(vdestN.val[0], vnp.val[0]);
++
++      vtmp1 = vext_u8(vnp.val[0], vnp.val[1], 3);
++      vdestN.val[1] = paeth(vdestN.val[0], vdest.val[1], vdest.val[0]);
++      vdestN.val[1] = vadd_u8(vdestN.val[1], vtmp1);
++
++      vtmp1 = vext_u8(vnp.val[0], vnp.val[1], 6);
++      vdestN.val[2] = paeth(vdestN.val[1], vdest.val[2], vdest.val[1]);
++      vdestN.val[2] = vadd_u8(vdestN.val[2], vtmp1);
++
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[0]), 0);
++      np += 3;
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[1]), 0);
++      np += 3;
++      vst1_lane_u32(png_ptr(uint32_t,np), png_ldr(uint32x2_t,&vdestN.val[2]), 0);
++   }
++   *rp_stop = last_byte;
++   *(rp_stop + row_info->rowbytes + 1) = last_byte_next;
+ }
++#endif
+ 
+ void
+ png_read_filter_row_paeth4_neon(png_row_infop row_info, png_bytep row,
+    png_const_bytep prev_row)
+ {
+    png_bytep rp = row;
+-   png_bytep rp_stop = row + row_info->rowbytes;
++   int count = row_info->rowbytes;
+    png_const_bytep pp = prev_row;
+ 
+    uint8x8_t vlast = vdup_n_u8(0);
+@@ -366,20 +1161,129 @@ png_read_filter_row_paeth4_neon(png_row_infop row_info, png_bytep row,
+ 
+    png_debug(1, "in png_read_filter_row_paeth4_neon");
+ 
+-   for (; rp < rp_stop; rp += 16, pp += 16)
+-   {
+-      uint32x2x4_t vtmp;
+-      uint8x8x4_t *vrpt, *vppt;
+-      uint8x8x4_t vrp, vpp;
++   uint32x2x4_t vtmp;
++   uint8x8x4_t *vrpt, *vppt;
++   uint8x8x4_t vrp, vpp;
++   uint32x2x4_t vdest_val;
++   while (count >= 16) {
+       uint32x2x4_t *temp_pointer;
+-      uint32x2x4_t vdest_val;
++      vtmp = vld4_u32(png_ptr(uint32_t,rp));
++      vrpt = png_ptr(uint8x8x4_t,&vtmp);
++      vrp = *vrpt;
++      vtmp = vld4_u32(png_ptrc(uint32_t,pp));
++      vppt = png_ptr(uint8x8x4_t,&vtmp);
++      vpp = *vppt;
+ 
++      vdest.val[0] = paeth(vdest.val[3], vpp.val[0], vlast);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
++      vdest.val[1] = paeth(vdest.val[0], vpp.val[1], vpp.val[0]);
++      vdest.val[1] = vadd_u8(vdest.val[1], vrp.val[1]);
++      vdest.val[2] = paeth(vdest.val[1], vpp.val[2], vpp.val[1]);
++      vdest.val[2] = vadd_u8(vdest.val[2], vrp.val[2]);
++      vdest.val[3] = paeth(vdest.val[2], vpp.val[3], vpp.val[2]);
++      vdest.val[3] = vadd_u8(vdest.val[3], vrp.val[3]);
++
++      vlast = vpp.val[3];
++
++      vdest_val = png_ldr(uint32x2x4_t, &vdest);
++      vst4_lane_u32(png_ptr(uint32_t,rp), vdest_val, 0);
++
++      rp += 16;
++      pp += 16;
++      count -= 16;
++   }
++
++   if (count >= 8) {
++      uint32x2x2_t vtmp1;
++      uint8x8x2_t *vrpt1, *vppt1;
++      uint8x8x2_t vrp1, vpp1;
++      uint32x2x2_t *temp_pointer;
++      uint32x2x2_t vdest_val1;
++
++      vtmp1 = vld2_u32(png_ptr(uint32_t,rp));
++      vrpt1 = png_ptr(uint8x8x2_t,&vtmp1);
++      vrp1 = *vrpt1;
++      vtmp1 = vld2_u32(png_ptrc(uint32_t,pp));
++      vppt1 = png_ptr(uint8x8x2_t,&vtmp1);
++      vpp1 = *vppt1;
++
++      vdest.val[0] = paeth(vdest.val[3], vpp1.val[0], vlast);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp1.val[0]);
++      vdest.val[1] = paeth(vdest.val[0], vpp1.val[1], vpp1.val[0]);
++      vdest.val[1] = vadd_u8(vdest.val[1], vrp1.val[1]);
++      vlast = vpp1.val[1];
++
++      vdest_val1 = png_ldr(uint32x2x2_t, &vdest);
++      vst2_lane_u32(png_ptr(uint32_t,rp), vdest_val1, 0);
++      vdest.val[3] = vdest.val[1];
++
++      rp += 8;
++      pp += 8;
++      count -= 8;
++   }
++
++   if (count == 0) {
++      return;
++   }
++
++   uint32x2_t vtmp2;
++   uint8x8_t *vrpt2, *vppt2;
++   uint8x8_t vrp2, vpp2;
++   uint32x2_t *temp_pointer;
++   uint32x2_t vdest_val2;
++
++   vtmp2 = vld1_u32(png_ptr(uint32_t,rp));
++   vrpt2 = png_ptr(uint8x8_t,&vtmp2);
++   vrp2 = *vrpt2;
++   vtmp2 = vld1_u32(png_ptrc(uint32_t,pp));
++   vppt2 = png_ptr(uint8x8_t,&vtmp2);
++   vpp2 = *vppt2;
++
++   vdest.val[0] = paeth(vdest.val[3], vpp2, vlast);
++   vdest.val[0] = vadd_u8(vdest.val[0], vrp2);
++
++   vdest_val2 = png_ldr(uint32x2_t, &vdest);
++   vst1_lane_u32(png_ptr(uint32_t,rp), vdest_val2, 0);
++}
++
++#ifdef PNG_MULTY_LINE_ENABLE
++void
++png_read_filter_row_paeth4_x2_neon(png_row_infop row_info, png_bytep row,
++   png_const_bytep prev_row)
++{
++   png_bytep rp = row;
++   int count = row_info->rowbytes;
++   png_const_bytep pp = prev_row;
++   png_bytep np = row + row_info->rowbytes + 1;
++
++   uint8x8_t vlast = vdup_n_u8(0);
++   uint8x8x4_t vdest;
++   vdest.val[3] = vdup_n_u8(0);
++
++   png_debug(1, "in png_read_filter_row_paeth4_x2_neon");
++
++   uint32x2x4_t vtmp;
++   uint8x8x4_t *vrpt, *vppt;
++   uint8x8x4_t vrp, vpp;
++   uint32x2x4_t vdest_val;
++
++   uint8x8x4_t *vnpt;
++   uint8x8x4_t vnp;
++   uint8x8_t vlastN = vdup_n_u8(0);
++   uint8x8x4_t vdestN;
++   vdestN.val[3] = vdup_n_u8(0);
++
++   while (count >= 16) {
++      uint32x2x4_t *temp_pointer;
+       vtmp = vld4_u32(png_ptr(uint32_t,rp));
+       vrpt = png_ptr(uint8x8x4_t,&vtmp);
+       vrp = *vrpt;
+       vtmp = vld4_u32(png_ptrc(uint32_t,pp));
+       vppt = png_ptr(uint8x8x4_t,&vtmp);
+       vpp = *vppt;
++      vtmp = vld4_u32(png_ptrc(uint32_t,np));
++      vnpt = png_ptr(uint8x8x4_t,&vtmp);
++      vnp = *vnpt;
+ 
+       vdest.val[0] = paeth(vdest.val[3], vpp.val[0], vlast);
+       vdest.val[0] = vadd_u8(vdest.val[0], vrp.val[0]);
+@@ -394,8 +1298,107 @@ png_read_filter_row_paeth4_neon(png_row_infop row_info, png_bytep row,
+ 
+       vdest_val = png_ldr(uint32x2x4_t, &vdest);
+       vst4_lane_u32(png_ptr(uint32_t,rp), vdest_val, 0);
++
++      vdestN.val[0] = paeth(vdestN.val[3], vdest.val[0], vlastN);
++      vdestN.val[0] = vadd_u8(vdestN.val[0], vnp.val[0]);
++      vdestN.val[1] = paeth(vdestN.val[0], vdest.val[1], vdest.val[0]);
++      vdestN.val[1] = vadd_u8(vdestN.val[1], vnp.val[1]);
++      vdestN.val[2] = paeth(vdestN.val[1], vdest.val[2], vdest.val[1]);
++      vdestN.val[2] = vadd_u8(vdestN.val[2], vnp.val[2]);
++      vdestN.val[3] = paeth(vdestN.val[2], vdest.val[3], vdest.val[2]);
++      vdestN.val[3] = vadd_u8(vdestN.val[3], vnp.val[3]);
++
++      vlastN = vdest.val[3];
++
++      vdest_val = png_ldr(uint32x2x4_t, &vdestN);
++      vst4_lane_u32(png_ptr(uint32_t,np), vdest_val, 0);
++
++      rp += 16;
++      pp += 16;
++      np += 16;
++      count -= 16;
+    }
++
++   if (count >= 8) {
++      uint32x2x2_t vtmp1;
++      uint8x8x2_t *vrpt1, *vppt1, *vnpt1;
++      uint8x8x2_t vrp1, vpp1, vnp1;
++      uint32x2x2_t *temp_pointer;
++      uint32x2x2_t vdest_val1;
++
++      vtmp1 = vld2_u32(png_ptr(uint32_t,rp));
++      vrpt1 = png_ptr(uint8x8x2_t,&vtmp1);
++      vrp1 = *vrpt1;
++      vtmp1 = vld2_u32(png_ptrc(uint32_t,pp));
++      vppt1 = png_ptr(uint8x8x2_t,&vtmp1);
++      vpp1 = *vppt1;
++      vtmp1 = vld2_u32(png_ptrc(uint32_t,np));
++      vnpt1 = png_ptr(uint8x8x2_t,&vtmp1);
++      vnp1 = *vnpt1;
++
++      vdest.val[0] = paeth(vdest.val[3], vpp1.val[0], vlast);
++      vdest.val[0] = vadd_u8(vdest.val[0], vrp1.val[0]);
++      vdest.val[1] = paeth(vdest.val[0], vpp1.val[1], vpp1.val[0]);
++      vdest.val[1] = vadd_u8(vdest.val[1], vrp1.val[1]);
++
++      vlast = vpp1.val[1];
++
++      vdest_val1 = png_ldr(uint32x2x2_t, &vdest);
++      vst2_lane_u32(png_ptr(uint32_t,rp), vdest_val1, 0);
++
++      vdest.val[3] = vdest.val[1];
++
++      vdestN.val[0] = paeth(vdestN.val[3], vdest.val[0], vlastN);
++      vdestN.val[0] = vadd_u8(vdestN.val[0], vnp1.val[0]);
++      vdestN.val[1] = paeth(vdestN.val[0], vdest.val[1], vdest.val[0]);
++      vdestN.val[1] = vadd_u8(vdestN.val[1], vnp1.val[1]);
++
++      vlastN = vdest.val[1];
++
++      vdest_val1 = png_ldr(uint32x2x2_t, &vdestN);
++      vst2_lane_u32(png_ptr(uint32_t,np), vdest_val1, 0);
++
++      vdestN.val[3] = vdestN.val[1];
++
++      rp += 8;
++      pp += 8;
++      np += 8;
++      count -= 8;
++   }
++
++   if (count == 0) {
++      return;
++   }
++
++   uint32x2_t vtmp2;
++   uint8x8_t *vrpt2, *vppt2, *vnpt2;
++   uint8x8_t vrp2, vpp2, vnp2;
++   uint32x2_t *temp_pointer;
++   uint32x2_t vdest_val2;
++
++   vtmp2 = vld1_u32(png_ptr(uint32_t,rp));
++   vrpt2 = png_ptr(uint8x8_t,&vtmp2);
++   vrp2 = *vrpt2;
++   vtmp2 = vld1_u32(png_ptrc(uint32_t,pp));
++   vppt2 = png_ptr(uint8x8_t,&vtmp2);
++   vpp2 = *vppt2;
++   vtmp2 = vld1_u32(png_ptrc(uint32_t,np));
++   vnpt2 = png_ptr(uint8x8_t,&vtmp2);
++   vnp2 = *vnpt2;
++
++   vdest.val[0] = paeth(vdest.val[3], vpp2, vlast);
++   vdest.val[0] = vadd_u8(vdest.val[0], vrp2);
++
++   vdest_val2 = png_ldr(uint32x2_t, &vdest);
++   vst1_lane_u32(png_ptr(uint32_t,rp), vdest_val2, 0);
++
++   vdestN.val[0] = paeth(vdestN.val[3], vdest.val[0], vlastN);
++   vdestN.val[0] = vadd_u8(vdestN.val[0], vnp2);
++
++   vdest_val2 = png_ldr(uint32x2_t, &vdestN);
++   vst1_lane_u32(png_ptr(uint32_t,np), vdest_val2, 0);
+ }
++#endif
+ 
+ #endif /* PNG_ARM_NEON_OPT > 0 */
+ #endif /* PNG_ARM_NEON_IMPLEMENTATION == 1 (intrinsics) */
+diff --git a/pngpread.c b/pngpread.c
+index e283627..f22f6a3 100644
+--- a/pngpread.c
++++ b/pngpread.c
+@@ -262,11 +262,35@@ png_push_read_chunk(png_structrp png_ptr, png_inforp info_ptr)
+    else if (chunk_name == png_IDAT)
+    {
+       png_ptr->idat_size = png_ptr->push_length;
++
++#ifdef PNG_MULTY_LINE_ENABLE
++      // init inflate_buff
++      if (png_ptr->inflate_buff_max_size < png_ptr->push_length)
++      {
++         png_free(png_ptr, png_ptr->inflate_buff);
++         png_ptr->inflate_buff = png_voidcast(png_bytep,
++            png_malloc(png_ptr, png_ptr->push_length));
++         png_ptr->inflate_buff_size = 0;
++      }
++      png_ptr->inflate_buff_max_size = png_ptr->push_length;
++#endif
++
+       png_ptr->process_mode = PNG_READ_IDAT_MODE;
+       png_push_have_info(png_ptr, info_ptr);
+-      png_ptr->zstream.avail_out =
+-          (uInt) PNG_ROWBYTES(png_ptr->pixel_depth,
+-          png_ptr->iwidth) + 1;
++#ifdef PNG_MULTY_LINE_ENABLE
++      if (png_ptr->interlaced == 0 && png_ptr->bit_depth == 8 &&
++         (png_ptr->transformations & PNG_CHECK) == 0) {
++         int rest = png_ptr->num_rows - png_ptr->row_number;
++         int row_num = rest < PNG_INFLATE_ROWS ? rest : PNG_INFLATE_ROWS;
++         png_ptr->zstream.avail_out = (uInt)(PNG_ROWBYTES(png_ptr->pixel_depth,
++             png_ptr->iwidth) + 1) * row_num; // 一次解压多行
++      }
++      else
++#endif
++      {
++         png_ptr->zstream.avail_out =
++            (uInt)(PNG_ROWBYTES(png_ptr->pixel_depth, png_ptr->iwidth) + 1);
++      }
+       png_ptr->zstream.next_out = png_ptr->row_buf;
+       return;
+    }
+@@ -558,8 +582,110 @@ png_push_read_IDAT(png_structrp png_ptr)
+       }
+ 
+       png_ptr->idat_size = png_ptr->push_length;
++#ifdef PNG_MULTY_LINE_ENABLE
++      // init inflate_buff
++      if (png_ptr->inflate_buff_max_size < png_ptr->push_length)
++      {
++         png_free(png_ptr, png_ptr->inflate_buff);
++         png_ptr->inflate_buff = png_voidcast(png_bytep,
++            png_malloc(png_ptr, png_ptr->push_length));
++         png_ptr->inflate_buff_size = 0;
++      }
++      png_ptr->inflate_buff_max_size = png_ptr->push_length;
++#endif
+    }
+ 
++#ifdef PNG_MULTY_LINE_ENABLE
++    if (png_ptr->idat_size != 0 && png_ptr->save_buffer_size != 0)
++    {
++      if (png_ptr->idat_size <= png_ptr->save_buffer_size)
++      {
++         png_debug2(1, "png_IDAT1: idat_size=%d save_buffer_size=%ld",
++            png_ptr->idat_size, png_ptr->save_buffer_size);
++
++         size_t save_size = png_ptr->idat_size;
++
++         png_calculate_crc(png_ptr, png_ptr->save_buffer_ptr, save_size);
++         png_process_IDAT_data(png_ptr, png_ptr->save_buffer_ptr, save_size);
++
++         png_ptr->buffer_size -= save_size;
++         png_ptr->save_buffer_size -= save_size;
++         png_ptr->save_buffer_ptr += save_size;
++         png_ptr->idat_size = 0;
++      }
++
++      else
++      {
++         png_debug2(1, "png_IDAT2: idat_size=%d save_buffer_size=%ld",
++            png_ptr->idat_size, png_ptr->save_buffer_size);
++
++         size_t save_size = png_ptr->save_buffer_size;
++
++         memcpy(png_ptr->inflate_buff, png_ptr->save_buffer_ptr, save_size);
++
++         png_ptr->inflate_buff_size = save_size;
++         png_ptr->buffer_size -= save_size;
++         png_ptr->save_buffer_ptr += save_size;
++         png_ptr->save_buffer_size = 0;
++      }    
++   }
++
++   if (png_ptr->idat_size != 0 && png_ptr->current_buffer_size != 0)
++   {
++      size_t save_size = png_ptr->current_buffer_size;
++      if (png_ptr->idat_size > png_ptr->inflate_buff_size + save_size)
++      {
++         png_debug2(1, "png_IDAT3: inflate_buff_size=%ld current_buffer_size=%ld",
++            png_ptr->inflate_buff_size, save_size);
++
++         memcpy(png_ptr->inflate_buff + png_ptr->inflate_buff_size,
++            png_ptr->current_buffer_ptr, save_size);
++
++         png_ptr->inflate_buff_size += save_size;
++         png_ptr->buffer_size -= save_size;
++         png_ptr->current_buffer_ptr += save_size;
++         png_ptr->current_buffer_size = 0;
++      }
++
++      else
++      {
++         if (png_ptr->inflate_buff_size == 0)
++         {
++            png_debug2(1, "png_IDAT4: inflate_buff_size=%ld current_buffer_size=%ld",
++               png_ptr->inflate_buff_size, save_size);
++
++            save_size = png_ptr->idat_size;
++
++            png_calculate_crc(png_ptr, png_ptr->current_buffer_ptr, save_size);
++            png_process_IDAT_data(png_ptr, png_ptr->current_buffer_ptr, save_size);
++
++            png_ptr->buffer_size -= save_size;
++            png_ptr->current_buffer_size -= save_size;
++            png_ptr->current_buffer_ptr += save_size;
++            png_ptr->idat_size = 0;
++         }
++
++         else
++         {
++            save_size = png_ptr->idat_size - png_ptr->inflate_buff_size;
++            png_debug2(1, "png_IDAT5: inflate_buff_size=%ld save_size=%ld",
++               png_ptr->inflate_buff_size, save_size);
++
++            memcpy(png_ptr->inflate_buff + png_ptr->inflate_buff_size,
++               png_ptr->current_buffer_ptr, save_size);
++
++            png_ptr->inflate_buff_size = 0;
++            png_calculate_crc(png_ptr, png_ptr->inflate_buff, png_ptr->idat_size);
++            png_process_IDAT_data(png_ptr, png_ptr->inflate_buff, png_ptr->idat_size);
++
++            png_ptr->buffer_size -= save_size;
++            png_ptr->current_buffer_size -= save_size;
++            png_ptr->current_buffer_ptr += save_size;
++            png_ptr->idat_size = 0;
++         }
++      }
++   }
++#else
+    if (png_ptr->idat_size != 0 && png_ptr->save_buffer_size != 0)
+    {
+        size_t save_size = png_ptr->save_buffer_size;
+@@ -612,6 +738,7 @@ png_push_read_IDAT(png_structrp png_ptr)
+        png_ptr->current_buffer_size -= save_size;
+        png_ptr->current_buffer_ptr += save_size;
+    }
++#endif
+ 
+    if (png_ptr->idat_size == 0)
+    {
+@@ -623,6 +750,98 @@ png_push_read_IDAT(png_structrp png_ptr)
+    }
+ }
+ 
++#ifdef PNG_MULTY_LINE_ENABLE
++void /* PRIVATE */
++png_push_process_row_x2(png_structrp png_ptr, png_row_info row_info_origin)
++{
++   png_debug(1, "in png_push_process_row_x2");
++   /* 1.5.6: row_info moved out of png_struct to a local here. */
++   png_row_info row_info = row_info_origin;
++   png_read_filter_row(png_ptr, &row_info, png_ptr->row_buf + 1,
++      png_ptr->prev_row + 1, png_ptr->row_buf[0] + 4);
++
++   /* libpng 1.5.6: the following line was copying png_ptr->rowbytes before
++    * 1.5.6, while the buffer really is this big in current versions of libpng
++    * it may not be in the future, so this was changed just to copy the
++    * interlaced row count:
++    */
++#ifdef PNG_READ_TRANSFORMS_SUPPORTED
++   if (png_ptr->transformations != 0)
++      png_do_read_transformations(png_ptr, &row_info);
++#endif
++
++   /* The transformed pixel depth should match the depth now in row_info. */
++   if (png_ptr->transformed_pixel_depth == 0)
++   {
++      png_ptr->transformed_pixel_depth = row_info.pixel_depth;
++      if (row_info.pixel_depth > png_ptr->maximum_pixel_depth)
++         png_error(png_ptr, "progressive row overflow");
++   }
++
++   png_push_have_row(png_ptr, png_ptr->row_buf + 1);
++   png_read_push_finish_row(png_ptr);
++
++   png_ptr->row_buf = png_ptr->row_buf + png_ptr->rowbytes + 1;
++
++   // do it again
++   if (png_ptr->transformations != 0)
++   {
++      memcpy(png_ptr->prev_row, png_ptr->row_buf, row_info.rowbytes + 1);
++   }
++   else
++   {
++      png_ptr->prev_row = png_ptr->row_buf;
++   }
++#ifdef PNG_READ_TRANSFORMS_SUPPORTED
++   if (png_ptr->transformations != 0)
++      png_do_read_transformations(png_ptr, &row_info);
++#endif
++
++   png_push_have_row(png_ptr, png_ptr->row_buf + 1);
++   png_read_push_finish_row(png_ptr);
++}
++
++void png_push_process_multi_rows(png_structrp png_ptr, int row_num)
++{
++   png_debug(1, "in png_push_process_multi_rows");
++   uInt row_bytes =  png_ptr->rowbytes + 1;
++
++   png_row_info row_info;
++   row_info.width = png_ptr->iwidth;
++   row_info.color_type = png_ptr->color_type;
++   row_info.bit_depth = png_ptr->bit_depth;
++   row_info.channels = png_ptr->channels;
++   row_info.pixel_depth = png_ptr->pixel_depth;
++   row_info.rowbytes = png_ptr->rowbytes;
++
++   png_bytep temp_row = png_ptr->row_buf;
++   png_bytep temp_prev_row = png_ptr->prev_row;
++
++   for (int i = 0; i < row_num; i++) {
++      if ((png_ptr->channels == 3 || png_ptr->channels == 4) &&
++          i < row_num -1 && png_ptr->row_buf[0] > PNG_FILTER_VALUE_SUB &&
++          png_ptr->row_buf[0] < PNG_FILTER_VALUE_LAST &&
++          png_ptr->row_buf[0] == png_ptr->row_buf[row_bytes]
++         )
++      {
++         png_push_process_row_x2(png_ptr, row_info);
++         png_ptr->row_buf = png_ptr->row_buf + row_bytes;
++         i++;
++         continue;
++      }
++      png_push_process_row(png_ptr);
++      png_ptr->row_buf = png_ptr->row_buf + row_bytes;
++   }
++   
++   if (png_ptr->transformations == 0 && png_ptr->interlaced == 0)
++   {
++      png_ptr->prev_row = temp_prev_row;
++      memcpy(png_ptr->prev_row, png_ptr->row_buf - row_bytes, row_bytes);
++   }
++   png_ptr->row_buf = temp_row;
++}
++#endif
++
+ void /* PRIVATE */
+ png_process_IDAT_data(png_structrp png_ptr, png_bytep buffer,
+     size_t buffer_length)
+@@ -639,6 +858,16 @@ png_process_IDAT_data(png_structrp png_ptr, png_bytep buffer,
+    /* TODO: WARNING: TRUNCATION ERROR: DANGER WILL ROBINSON: */
+    png_ptr->zstream.avail_in = (uInt)buffer_length;
+ 
++   int row_num = 1;
++#ifdef PNG_MULTY_LINE_ENABLE
++   if (png_ptr->interlaced == 0 && png_ptr->bit_depth == 8 &&
++       (png_ptr->transformations & PNG_CHECK) == 0)
++   {
++      int rest = png_ptr->num_rows - png_ptr->row_number;
++      row_num = rest < PNG_INFLATE_ROWS ? rest : PNG_INFLATE_ROWS;
++   }
++#endif
++
+    /* Keep going until the decompressed data is all processed
+     * or the stream marked as finished.
+     */
+@@ -655,8 +884,16 @@ png_process_IDAT_data(png_structrp png_ptr, png_bytep buffer,
+       if (!(png_ptr->zstream.avail_out > 0))
+       {
+          /* TODO: WARNING: TRUNCATION ERROR: DANGER WILL ROBINSON: */
++#ifdef PNG_MULTY_LINE_ENABLE
++         if (png_ptr->interlaced == 0 && png_ptr->bit_depth += 8 &&
++             (png_ptr->transformations & PNG_CHECK) == 0)
++         {
++            int rest = png_ptr->num_rows - png_ptr->row_number;
++            row_num = rest < PNG_INFLATE_ROWS ? rest : PNG_INFLATE_ROWS;
++         }
++#endif
+          png_ptr->zstream.avail_out = (uInt)(PNG_ROWBYTES(png_ptr->pixel_depth,
+-             png_ptr->iwidth) + 1);
++             png_ptr->iwidth) + 1) * row_num;
+ 
+          png_ptr->zstream.next_out = png_ptr->row_buf;
+       }
+@@ -719,7 +956,11 @@ png_process_IDAT_data(png_structrp png_ptr, png_bytep buffer,
+ 
+          /* Do we have a complete row? */
+          if (png_ptr->zstream.avail_out == 0)
++#ifdef PNG_MULTY_LINE_ENABLE
++            png_push_process_multi_rows(png_ptr, row_num);
++#else
+             png_push_process_row(png_ptr);
++#endif
+       }
+ 
+       /* And check for the end of the stream. */
+@@ -738,6 +979,7 @@ png_process_IDAT_data(png_structrp png_ptr, png_bytep buffer,
+ void /* PRIVATE */
+ png_push_process_row(png_structrp png_ptr)
+ {
++   png_debug(1, "in png_push_process_row");
+    /* 1.5.6: row_info moved out of png_struct to a local here. */
+    png_row_info row_info;
+ 
+@@ -762,8 +1004,16 @@ png_push_process_row(png_structrp png_ptr)
+     * it may not be in the future, so this was changed just to copy the
+     * interlaced row count:
+     */
+-   memcpy(png_ptr->prev_row, png_ptr->row_buf, row_info.rowbytes + 1);
+-
++#ifdef PNG_MULTY_LINE_ENABLE
++   if (png_ptr->transformations == 0 && png_ptr->interlaced == 0)
++   {
++      png_ptr->prev_row = png_ptr->row_buf;
++   }
++   else
++#endif
++   {
++      memcpy(png_ptr->prev_row, png_ptr->row_buf, row_info.rowbytes + 1);
++   }
+ #ifdef PNG_READ_TRANSFORMS_SUPPORTED
+    if (png_ptr->transformations != 0)
+       png_do_read_transformations(png_ptr, &row_info);
+diff --git a/pngpriv.h b/pngpriv.h
+index 2e426cf..6d60f70 100644
+--- a/pngpriv.h
++++ b/pngpriv.h
+@@ -189,6 +189,17 @@
+ #     define PNG_ARM_NEON_IMPLEMENTATION 0
+ #endif /* PNG_ARM_NEON_OPT > 0 */
+ 
++#ifdef PNG_ARM_NEON_IMPLEMENTATION
++#  if PNG_ARM_NEON_IMPLEMENTATION == 1
++#    define PNG_MULTY_LINE_ENABLE
++#    define PNG_INFLATE_MAX_SIZE 65536
++#    define PNG_INFLATE_ROWS 50
++#    define PNG_CHECK (PNG_EXPAND | PNG_STRIP_ALPHA | PNG_RGB_TO_GRAY | \
++        PNG_GRAY_TO_RGB | PNG_COMPOSE | PNG_SCALE_16_TO_8 | PNG_16_TO_8 | \
++        PNG_EXPAND_16 | PNG_PACK)
++#  endif
++#endif
++
+ #ifndef PNG_MIPS_MSA_OPT
+ #  if defined(__mips_msa) && (__mips_isa_rev >= 5) && defined(PNG_ALIGNED_MEMORY_SUPPORTED)
+ #     define PNG_MIPS_MSA_OPT 2
+@@ -1304,6 +1315,18 @@ PNG_INTERNAL_FUNCTION(void,png_read_filter_row_paeth3_neon,(png_row_infop
+     row_info, png_bytep row, png_const_bytep prev_row),PNG_EMPTY);
+ PNG_INTERNAL_FUNCTION(void,png_read_filter_row_paeth4_neon,(png_row_infop
+     row_info, png_bytep row, png_const_bytep prev_row),PNG_EMPTY);
++#ifdef PNG_MULTY_LINE_ENABLE
++PNG_INTERNAL_FUNCTION(void,png_read_filter_row_up_x2_neon,(png_row_infop
++    row_info, png_bytep row, png_const_bytep prev_row),PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(void,png_read_filter_row_avg3_x2_neon,(png_row_infop
++    row_info, png_bytep row, png_const_bytep prev_row),PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(void,png_read_filter_row_avg4_x2_neon,(png_row_infop
++    row_info, png_bytep row, png_const_bytep prev_row),PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(void,png_read_filter_row_paeth3_x2_neon,(png_row_infop
++    row_info, png_bytep row, png_const_bytep prev_row),PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(void,png_read_filter_row_paeth4_x2_neon,(png_row_infop
++    row_info, png_bytep row, png_const_bytep prev_row),PNG_EMPTY);
++#endif
+ #endif
+ 
+ #if PNG_MIPS_MSA_OPT > 0
+diff --git a/pngread.c b/pngread.c
+index 5ab9224..6efc5b6 100644
+--- a/pngread.c
++++ b/pngread.c
+@@ -54,7 +54,11 @@ png_create_read_struct_2,(png_const_charp user_png_ver, png_voidp error_ptr,
+        * required (it will be zero in a write structure.)
+        */
+ #     ifdef PNG_SEQUENTIAL_READ_SUPPORTED
++#ifdef PNG_MULTY_LINE_ENABLE
++         png_ptr->IDAT_read_size = PNG_INFLATE_MAX_SIZE;
++#else
+          png_ptr->IDAT_read_size = PNG_IDAT_READ_SIZE;
++#endif
+ #     endif
+ 
+ #     ifdef PNG_BENIGN_READ_ERRORS_SUPPORTED
+@@ -684,6 +688,184 @@ png_read_rows(png_structrp png_ptr, png_bytepp row,
+ #endif /* SEQUENTIAL_READ */
+ 
+ #ifdef PNG_SEQUENTIAL_READ_SUPPORTED
++
++#ifdef PNG_MULTY_LINE_ENABLE
++void png_read_two_rows(png_structrp png_ptr, png_bytepp rows, png_uint_32 i,
++                         png_row_info row_info)
++{
++   png_debug1(1, "in png_read_two_rows %d", png_ptr->row_buf[0]);
++   png_read_filter_row(png_ptr, &row_info, png_ptr->row_buf + 1,
++      png_ptr->prev_row + 1, png_ptr->row_buf[0] + 4);
++
++#ifdef PNG_MNG_FEATURES_SUPPORTED
++   if ((png_ptr->mng_features_permitted & PNG_FLAG_MNG_FILTER_64) != 0 &&
++      (png_ptr->filter_type == PNG_INTRAPIXEL_DIFFERENCING))
++   {
++      /* Intrapixel differencing */
++      png_do_read_intrapixel(&row_info, png_ptr->row_buf + 1);
++   }
++#endif
++
++#ifdef PNG_READ_TRANSFORMS_SUPPORTED
++   if (png_ptr->transformations
++#       ifdef PNG_CHECK_FOR_INVALID_INDEX_SUPPORTED
++         || png_ptr->num_palette_max >= 0
++#       endif
++      )
++      png_do_read_transformations(png_ptr, &row_info);
++#endif
++
++   /* The transformed pixel depth should match the depth now in row_info. */
++   if (png_ptr->transformed_pixel_depth == 0)
++   {
++      png_ptr->transformed_pixel_depth = row_info.pixel_depth;
++      if (row_info.pixel_depth > png_ptr->maximum_pixel_depth)
++         png_error(png_ptr, "sequential row overflow");
++   }
++
++   else if (png_ptr->transformed_pixel_depth != row_info.pixel_depth)
++      png_error(png_ptr, "internal sequential row size calculation error");
++
++      
++   if (rows[i] != NULL)
++      png_combine_row(png_ptr, rows[i], -1/*ignored*/);
++
++   png_read_finish_row(png_ptr);
++
++   if (png_ptr->read_row_fn != NULL)
++      (*(png_ptr->read_row_fn))(png_ptr, png_ptr->row_number, png_ptr->pass);
++
++   png_ptr->row_buf = png_ptr->row_buf + row_info.rowbytes + 1;
++
++   // do again next line
++   memcpy(png_ptr->prev_row, png_ptr->row_buf, row_info.rowbytes + 1);
++
++#ifdef PNG_MNG_FEATURES_SUPPORTED
++   if ((png_ptr->mng_features_permitted & PNG_FLAG_MNG_FILTER_64) != 0 &&
++      (png_ptr->filter_type == PNG_INTRAPIXEL_DIFFERENCING))
++   {
++      /* Intrapixel differencing */
++      png_do_read_intrapixel(&row_info, png_ptr->row_buf + 1);
++   }
++#endif
++
++#ifdef PNG_READ_TRANSFORMS_SUPPORTED
++   if (png_ptr->transformations
++#       ifdef PNG_CHECK_FOR_INVALID_INDEX_SUPPORTED
++         || png_ptr->num_palette_max >= 0
++#       endif
++      )
++      png_do_read_transformations(png_ptr, &row_info);
++#endif
++
++   /* The transformed pixel depth should match the depth now in row_info. */
++   if (png_ptr->transformed_pixel_depth == 0)
++   {
++      png_ptr->transformed_pixel_depth = row_info.pixel_depth;
++      if (row_info.pixel_depth > png_ptr->maximum_pixel_depth)
++         png_error(png_ptr, "sequential row overflow");
++   }
++
++   else if (png_ptr->transformed_pixel_depth != row_info.pixel_depth)
++      png_error(png_ptr, "internal sequential row size calculation error");
++
++      
++   if (rows[i+1] != NULL)
++      png_combine_row(png_ptr, rows[i+1], -1/*ignored*/);
++
++   png_read_finish_row(png_ptr);
++
++   if (png_ptr->read_row_fn != NULL)
++      (*(png_ptr->read_row_fn))(png_ptr, png_ptr->row_number, png_ptr->pass);
++
++   png_ptr->row_buf = png_ptr->row_buf + row_info.rowbytes + 1;
++
++}
++
++void png_read_muilty_rows(png_structrp png_ptr, png_bytepp rows, png_uint_32 row_num,
++                         png_row_info row_info_origin)
++{
++   if (png_ptr == NULL)
++      return;
++
++   png_debug2(1, "in png_read_muilty_rows (row %lu, pass %d)",
++       (unsigned long)png_ptr->row_number, png_ptr->pass);
++
++   if ((png_ptr->mode & PNG_HAVE_IDAT) == 0)
++         png_error(png_ptr, "Invalid attempt to read row data");
++
++   /* Fill the row with IDAT data: */
++   uInt row_bytes =  row_info_origin.rowbytes;
++   png_ptr->row_buf[0]=255; /* to force error if no data was found */
++   png_read_IDAT_data(png_ptr, png_ptr->row_buf, (row_bytes + 1) * row_num);
++   png_bytep temp_row = png_ptr->row_buf;
++
++   for (png_uint_32 i = 0; i < row_num; i++) {
++      png_row_info row_info = row_info_origin;
++      if ((row_info_origin.channels == 3 || row_info_origin.channels == 4) &&
++          i < row_num -1 && png_ptr->row_buf[0] > PNG_FILTER_VALUE_SUB &&
++          png_ptr->row_buf[0] < PNG_FILTER_VALUE_LAST &&
++          png_ptr->row_buf[0] == png_ptr->row_buf[row_info_origin.rowbytes + 1]
++         ) {
++         png_read_two_rows(png_ptr, rows, i, row_info);
++         i++;
++         continue;
++      }
++      if (png_ptr->row_buf[0] > PNG_FILTER_VALUE_NONE)
++      {
++         if (png_ptr->row_buf[0] < PNG_FILTER_VALUE_LAST)
++            png_read_filter_row(png_ptr, &row_info, png_ptr->row_buf + 1,
++               png_ptr->prev_row + 1, png_ptr->row_buf[0]);
++         else
++            png_debug1(1, "bad adaptive filter value %d", png_ptr->row_buf[0]);
++      }
++
++      memcpy(png_ptr->prev_row, png_ptr->row_buf, row_info_origin.rowbytes + 1);
++
++#ifdef PNG_MNG_FEATURES_SUPPORTED
++      if ((png_ptr->mng_features_permitted & PNG_FLAG_MNG_FILTER_64) != 0 &&
++         (png_ptr->filter_type == PNG_INTRAPIXEL_DIFFERENCING))
++      {
++         /* Intrapixel differencing */
++         png_do_read_intrapixel(&row_info, png_ptr->row_buf + 1);
++      }
++#endif
++
++#ifdef PNG_READ_TRANSFORMS_SUPPORTED
++      if (png_ptr->transformations
++#        ifdef PNG_CHECK_FOR_INVALID_INDEX_SUPPORTED
++            || png_ptr->num_palette_max >= 0
++#        endif
++         )
++         png_do_read_transformations(png_ptr, &row_info);
++#endif
++
++      /* The transformed pixel depth should match the depth now in row_info. */
++      if (png_ptr->transformed_pixel_depth == 0)
++      {
++         png_ptr->transformed_pixel_depth = row_info.pixel_depth;
++         if (row_info.pixel_depth > png_ptr->maximum_pixel_depth)
++            png_error(png_ptr, "sequential row overflow");
++      }
++
++      else if (png_ptr->transformed_pixel_depth != row_info.pixel_depth)
++         png_error(png_ptr, "internal sequential row size calculation error");
++
++      
++      if (rows[i] != NULL)
++         png_combine_row(png_ptr, rows[i], -1/*ignored*/);
++
++      png_read_finish_row(png_ptr);
++
++      if (png_ptr->read_row_fn != NULL)
++         (*(png_ptr->read_row_fn))(png_ptr, png_ptr->row_number, png_ptr->pass);
++
++      png_ptr->row_buf = png_ptr->row_buf + row_bytes + 1;
++   }
++   png_ptr->row_buf = temp_row;
++}
++#endif
++
+ /* Read the entire image.  If the image has an alpha channel or a tRNS
+  * chunk, and you have called png_handle_alpha()[*], you will need to
+  * initialize the image to the current image that PNG will be overlaying.
+@@ -745,13 +927,82 @@ png_read_image(png_structrp png_ptr, png_bytepp image)
+ 
+    image_height=png_ptr->height;
+ 
+-   for (j = 0; j < pass; j++)
+-   {
++#ifdef PNG_MULTY_LINE_ENABLE
++   if (png_ptr->interlaced == 0 && png_ptr->bit_depth == 8 &&
++       (png_ptr->transformations & PNG_CHECK) == 0) {
++      if ((png_ptr->flags & PNG_FLAG_ROW_INIT) == 0)
++         png_read_start_row(png_ptr);
++
++#ifdef PNG_WARNINGS_SUPPORTED
++      /* Check for transforms that have been set but were defined out */
++#if defined(PNG_WRITE_INVERT_SUPPORTED) && !defined(PNG_READ_INVERT_SUPPORTED)
++      if ((png_ptr->transformations & PNG_INVERT_MONO) != 0)
++         png_warning(png_ptr, "PNG_READ_INVERT_SUPPORTED is not defined");
++#endif
++
++#if defined(PNG_WRITE_FILLER_SUPPORTED) && !defined(PNG_READ_FILLER_SUPPORTED)
++      if ((png_ptr->transformations & PNG_FILLER) != 0)
++         png_warning(png_ptr, "PNG_READ_FILLER_SUPPORTED is not defined");
++#endif
++
++#if defined(PNG_WRITE_PACKSWAP_SUPPORTED) && \
++    !defined(PNG_READ_PACKSWAP_SUPPORTED)
++      if ((png_ptr->transformations & PNG_PACKSWAP) != 0)
++         png_warning(png_ptr, "PNG_READ_PACKSWAP_SUPPORTED is not defined");
++#endif
++
++#if defined(PNG_WRITE_PACK_SUPPORTED) && !defined(PNG_READ_PACK_SUPPORTED)
++      if ((png_ptr->transformations & PNG_PACK) != 0)
++         png_warning(png_ptr, "PNG_READ_PACK_SUPPORTED is not defined");
++#endif
++
++#if defined(PNG_WRITE_SHIFT_SUPPORTED) && !defined(PNG_READ_SHIFT_SUPPORTED)
++      if ((png_ptr->transformations & PNG_SHIFT) != 0)
++         png_warning(png_ptr, "PNG_READ_SHIFT_SUPPORTED is not defined");
++#endif
++
++#if defined(PNG_WRITE_BGR_SUPPORTED) && !defined(PNG_READ_BGR_SUPPORTED)
++      if ((png_ptr->transformations & PNG_BGR) != 0)
++         png_warning(png_ptr, "PNG_READ_BGR_SUPPORTED is not defined");
++#endif
++
++#if defined(PNG_WRITE_SWAP_SUPPORTED) && !defined(PNG_READ_SWAP_SUPPORTED)
++      if ((png_ptr->transformations & PNG_SWAP_BYTES) != 0)
++         png_warning(png_ptr, "PNG_READ_SWAP_SUPPORTED is not defined");
++#endif
++#endif /* WARNINGS */
++
++      png_row_info row_info;
++      row_info.width = png_ptr->iwidth;
++      row_info.color_type = png_ptr->color_type;
++      row_info.bit_depth = png_ptr->bit_depth;
++      row_info.channels = png_ptr->channels;
++      row_info.pixel_depth = png_ptr->pixel_depth;
++      row_info.rowbytes = png_ptr->rowbytes;
++
+       rp = image;
+-      for (i = 0; i < image_height; i++)
++      int row_num = PNG_INFLATE_ROWS;
++      for (i = 0; i < image_height; i += PNG_INFLATE_ROWS)
+       {
+-         png_read_row(png_ptr, *rp, NULL);
+-         rp++;
++         if (image_height - i < PNG_INFLATE_ROWS)
++         {
++            row_num = image_height - i;
++         }
++         png_read_muilty_rows(png_ptr, rp, row_num, row_info);
++         rp += row_num;
++      }
++   }
++   else
++#endif
++   {
++      for (j = 0; j < pass; j++)
++      {
++         rp = image;
++         for (i = 0; i < image_height; i++)
++         {
++            png_read_row(png_ptr, *rp, NULL);
++            rp++;
++         }
+       }
+    }
+ }
+@@ -1000,6 +1251,10 @@ png_read_destroy(png_structrp png_ptr)
+    png_ptr->riffled_palette = NULL;
+ #endif
+ 
++#ifdef PNG_MULTY_LINE_ENABLE
++   png_free(png_ptr, png_ptr->inflate_buff);
++   png_ptr->inflate_buff = NULL;
++#endif
+    /* NOTE: the 'setjmp' buffer may still be allocated and the memory and error
+     * callbacks are still set at this point.  They are required to complete the
+     * destruction of the png_struct itself.
+diff --git a/pngrutil.c b/pngrutil.c
+index ca060dd..c3c177c 100644
+--- a/pngrutil.c
++++ b/pngrutil.c
+@@ -4136,7 +4136,7 @@ png_read_filter_row(png_structrp pp, png_row_infop row_info, png_bytep row,
+     * PNG_FILTER_OPTIMIZATIONS to a function that overrides the generic
+     * implementations.  See png_init_filter_functions above.
+     */
+-   if (filter > PNG_FILTER_VALUE_NONE && filter < PNG_FILTER_VALUE_LAST)
++   if (filter > PNG_FILTER_VALUE_NONE && filter < PNG_FILTER_VALUE_LAST_X2)
+    {
+       if (pp->read_filter[0] == NULL)
+          png_init_filter_functions(pp);
+@@ -4604,11 +4604,24 @@ defined(PNG_USER_TRANSFORM_PTR_SUPPORTED)
+       png_free(png_ptr, png_ptr->big_prev_row);
+ 
+       if (png_ptr->interlaced != 0)
+-         png_ptr->big_row_buf = (png_bytep)png_calloc(png_ptr,
+-             row_bytes + 48);
++      {
++         png_ptr->big_row_buf = (png_bytep)png_calloc(png_ptr, row_bytes + 48);
++      }
+ 
+       else
+-         png_ptr->big_row_buf = (png_bytep)png_malloc(png_ptr, row_bytes + 48);
++      {
++         png_uint_32 row_num = 1;
++#ifdef PNG_MULTY_LINE_ENABLE
++         if (png_ptr->bit_depth == 8 &&
++             (png_ptr->transformations & PNG_CHECK) == 0)
++         {
++            row_num = png_ptr->height < PNG_INFLATE_ROWS ?
++               png_ptr->height : PNG_INFLATE_ROWS;
++         }
++#endif
++         png_ptr->big_row_buf =
++            (png_bytep)png_malloc(png_ptr, row_bytes * row_num + 48);
++      }
+ 
+       png_ptr->big_prev_row = (png_bytep)png_malloc(png_ptr, row_bytes + 48);
+ 
+diff --git a/pngstruct.h b/pngstruct.h
+index e591d94..1875c7a 100644
+--- a/pngstruct.h
++++ b/pngstruct.h
+@@ -140,6 +140,16 @@ typedef const png_colorspace * PNG_RESTRICT png_const_colorspacerp;
+ #define PNG_COLORSPACE_CANCEL(flags)        (0xffff ^ (flags))
+ #endif /* COLORSPACE || GAMMA */
+ 
++#ifdef PNG_MULTY_LINE_ENABLE
++/* General flags for the 2 line filter */
++#define PNG_FILTER_VALUE_UP_X2      6 // PNG_FILTER_VALUE_UP + 4
++#define PNG_FILTER_VALUE_AVG_X2     7 // PNG_FILTER_VALUE_AVG + 4
++#define PNG_FILTER_VALUE_PAETH_X2   8 // PNG_FILTER_VALUE_PAETH + 4
++#define PNG_FILTER_VALUE_LAST_X2    9 // PNG_FILTER_VALUE_LAST + 4
++#else
++#define PNG_FILTER_VALUE_LAST_X2    5 // PNG_FILTER_VALUE_LAST
++#endif
++
+ struct png_struct_def
+ {
+ #ifdef PNG_SETJMP_SUPPORTED
+@@ -467,7 +477,7 @@ struct png_struct_def
+    png_bytep big_prev_row;
+ 
+ /* New member added in libpng-1.5.7 */
+-   void (*read_filter[PNG_FILTER_VALUE_LAST-1])(png_row_infop row_info,
++   void (*read_filter[PNG_FILTER_VALUE_LAST_X2-1])(png_row_infop row_info,
+       png_bytep row, png_const_bytep prev_row);
+ 
+ #ifdef PNG_READ_SUPPORTED
+@@ -475,5 +485,11 @@ struct png_struct_def
+    png_colorspace   colorspace;
+ #endif
+ #endif
++
++#ifdef PNG_MULTY_LINE_ENABLE
++   png_bytep inflate_buff;
++   png_uint_32 inflate_buff_max_size;
++   png_uint_32 inflate_buff_size;
++#endif
+ };
+ #endif /* PNGSTRUCT_H */
+diff --git a/pngtrans.c b/pngtrans.c
+index 1100f46..4860e20 100644
+--- a/pngtrans.c
++++ b/pngtrans.c
+@@ -13,6 +13,17 @@
+ 
+ #include "pngpriv.h"
+ 
++#ifdef PNG_ARM_NEON_IMPLEMENTATION
++#  if PNG_ARM_NEON_IMPLEMENTATION == 1
++#    define PNG_ARM_NEON_INTRINSICS_AVAILABLE
++#    if defined(_MSC_VER) && !defined(__clang__) && defined(_M_ARM64)
++#      include <arm64_neon.h>
++#    else
++#      include <arm_neon.h>
++#    endif
++#  endif
++#endif
++
+ #if defined(PNG_READ_SUPPORTED) || defined(PNG_WRITE_SUPPORTED)
+ 
+ #if defined(PNG_READ_BGR_SUPPORTED) || defined(PNG_WRITE_BGR_SUPPORTED)
+@@ -269,13 +280,19 @@ png_do_invert(png_row_infop row_info, png_bytep row)
+    if (row_info->color_type == PNG_COLOR_TYPE_GRAY)
+    {
+       png_bytep rp = row;
+-      size_t i;
+-      size_t istop = row_info->rowbytes;
+-
+-      for (i = 0; i < istop; i++)
++      png_bytep rp_stop = row + row_info->rowbytes;
++#ifdef PNG_ARM_NEON_INTRINSICS_AVAILABLE
++      png_bytep rp_stop_neon = row + row_info->rowbytes - 16;
++      for (; rp < rp_stop_neon; rp += 16)
++      {
++         uint8x16_t gray = vld1q_u8(rp);
++         gray = ~gray;
++         vst1q_u8(rp, gray);
++      }   
++#endif
++      for (; rp < rp_stop; rp++)
+       {
+          *rp = (png_byte)(~(*rp));
+-         rp++;
+       }
+    }
+ 
+@@ -283,10 +300,17 @@ png_do_invert(png_row_infop row_info, png_bytep row)
+       row_info->bit_depth == 8)
+    {
+       png_bytep rp = row;
+-      size_t i;
+-      size_t istop = row_info->rowbytes;
+-
+-      for (i = 0; i < istop; i += 2)
++      png_bytep rp_stop = row + row_info->rowbytes;
++#ifdef PNG_ARM_NEON_INTRINSICS_AVAILABLE
++      png_bytep rp_stop_neon = row + row_info->rowbytes - 32;
++      for (; rp < rp_stop_neon; rp += 32)
++      {
++         uint8x16x2_t gray_alpha = vld2q_u8(rp);
++         gray_alpha.val[0] = ~gray_alpha.val[0];
++         vst2q_u8(rp, gray_alpha);
++      } 
++#endif
++      for (; rp < rp_stop; rp += 2)
+       {
+          *rp = (png_byte)(~(*rp));
+          rp += 2;
+@@ -298,10 +322,18 @@ png_do_invert(png_row_infop row_info, png_bytep row)
+       row_info->bit_depth == 16)
+    {
+       png_bytep rp = row;
+-      size_t i;
+-      size_t istop = row_info->rowbytes;
+-
+-      for (i = 0; i < istop; i += 4)
++      png_bytep rp_stop = row + row_info->rowbytes;
++#ifdef PNG_ARM_NEON_INTRINSICS_AVAILABLE
++      png_bytep rp_stop_neon = row + row_info->rowbytes - 64;
++      for (; rp < rp_stop_neon; rp += 64)
++      {
++         uint8x16x4_t gray_alpha = vld4q_u8(rp);
++         gray_alpha.val[0] = ~gray_alpha.val[0];
++         gray_alpha.val[1] = ~gray_alpha.val[1];
++         vst4q_u8(rp, gray_alpha);
++      } 
++#endif
++      for (; rp < rp_stop; rp += 4)
+       {
+          *rp = (png_byte)(~(*rp));
+          *(rp + 1) = (png_byte)(~(*(rp + 1)));
+@@ -323,10 +355,20 @@ png_do_swap(png_row_infop row_info, png_bytep row)
+    if (row_info->bit_depth == 16)
+    {
+       png_bytep rp = row;
+-      png_uint_32 i;
+-      png_uint_32 istop= row_info->width * row_info->channels;
++      png_bytep rp_stop = row + row_info->rowbytes;
++#ifdef PNG_ARM_NEON_INTRINSICS_AVAILABLE
++      png_bytep rp_stop_neon = row + row_info->rowbytes - 32;
++      for (; rp < rp_stop_neon; rp += 32)
++      {
++         uint8x16x2_t gray = vld2q_u8(rp);
++         uint8x16_t tmp = gray.val[0];
++         gray.val[0] = gray.val[1];
++         gray.val[1] = tmp;
++         vst2q_u8(rp, gray);
++      }
++#endif
+ 
+-      for (i = 0; i < istop; i++, rp += 2)
++      for (; rp < rp_stop; rp += 2)
+       {
+ #ifdef PNG_BUILTIN_BSWAP16_SUPPORTED
+          /* Feature added to libpng-1.6.11 for testing purposes, not
+@@ -622,15 +664,25 @@ png_do_bgr(png_row_infop row_info, png_bytep row)
+ 
+    if ((row_info->color_type & PNG_COLOR_MASK_COLOR) != 0)
+    {
+-      png_uint_32 row_width = row_info->width;
+       if (row_info->bit_depth == 8)
+       {
+          if (row_info->color_type == PNG_COLOR_TYPE_RGB)
+          {
+-            png_bytep rp;
+-            png_uint_32 i;
++            png_bytep rp = row;
++            png_bytep rp_stop = row + row_info->rowbytes;
+ 
+-            for (i = 0, rp = row; i < row_width; i++, rp += 3)
++#ifdef PNG_ARM_NEON_INTRINSICS_AVAILABLE
++            png_bytep rp_stop_neon = row + row_info->rowbytes - 48;
++            for (; rp < rp_stop_neon; rp += 48)
++            {
++               uint8x16x3_t bgr = vld3q_u8(rp);
++               uint8x16_t tmp = bgr.val[2];
++               bgr.val[2] = bgr.val[0];
++               bgr.val[0] = tmp;
++               vst3q_u8(rp, bgr);
++            }
++#endif
++            for (; rp < rp_stop; rp += 3)
+             {
+                png_byte save = *rp;
+                *rp = *(rp + 2);
+@@ -640,10 +692,21 @@ png_do_bgr(png_row_infop row_info, png_bytep row)
+ 
+          else if (row_info->color_type == PNG_COLOR_TYPE_RGB_ALPHA)
+          {
+-            png_bytep rp;
+-            png_uint_32 i;
++            png_bytep rp = row;
++            png_bytep rp_stop = row + row_info->rowbytes;
+ 
+-            for (i = 0, rp = row; i < row_width; i++, rp += 4)
++#ifdef PNG_ARM_NEON_INTRINSICS_AVAILABLE
++            png_bytep rp_stop_neon = row + row_info->rowbytes - 64;
++            for (; rp < rp_stop_neon; rp += 64)
++            {
++               uint8x16x4_t bgra = vld4q_u8(rp);
++               uint8x16_t tmp = bgra.val[2];
++               bgra.val[2] = bgra.val[0];
++               bgra.val[0] = tmp;
++               vst4q_u8(rp, bgra);
++            }
++#endif
++            for (; rp < rp_stop; rp += 4)
+             {
+                png_byte save = *rp;
+                *rp = *(rp + 2);
+@@ -657,10 +720,21 @@ png_do_bgr(png_row_infop row_info, png_bytep row)
+       {
+          if (row_info->color_type == PNG_COLOR_TYPE_RGB)
+          {
+-            png_bytep rp;
+-            png_uint_32 i;
++            png_bytep rp = row;
++            png_bytep rp_stop = row + row_info->rowbytes;
+ 
+-            for (i = 0, rp = row; i < row_width; i++, rp += 6)
++#ifdef PNG_ARM_NEON_INTRINSICS_AVAILABLE
++            png_bytep rp_stop_neon = row + row_info->rowbytes - 48;
++            for (; rp < rp_stop_neon; rp += 48)
++            {
++               uint16x8x3_t bgr = vld3q_u16((unsigned short *)rp);
++               uint16x8_t tmp = bgr.val[2];
++               bgr.val[2] = bgr.val[0];
++               bgr.val[0] = tmp;
++               vst3q_u16((unsigned short *)rp, bgr);
++            }
++#endif
++            for (; rp < rp_stop; rp += 6)
+             {
+                png_byte save = *rp;
+                *rp = *(rp + 4);
+@@ -673,10 +747,21 @@ png_do_bgr(png_row_infop row_info, png_bytep row)
+ 
+          else if (row_info->color_type == PNG_COLOR_TYPE_RGB_ALPHA)
+          {
+-            png_bytep rp;
+-            png_uint_32 i;
++            png_bytep rp = row;
++            png_bytep rp_stop = row + row_info->rowbytes;
+ 
+-            for (i = 0, rp = row; i < row_width; i++, rp += 8)
++#ifdef PNG_ARM_NEON_INTRINSICS_AVAILABLE
++            png_bytep rp_stop_neon = row + row_info->rowbytes - 48;
++            for (; rp < rp_stop_neon; rp += 64)
++            {
++               uint16x8x4_t bgra = vld4q_u16((unsigned short *)rp);
++               uint16x8_t tmp = bgra.val[2];
++               bgra.val[2] = bgra.val[0];
++               bgra.val[0] = tmp;
++               vst4q_u16((unsigned short *)rp, bgra);
++            }
++#endif
++            for (; rp < rp_stop; rp += 8)
+             {
+                png_byte save = *rp;
+                *rp = *(rp + 4);
