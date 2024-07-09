@@ -1342,8 +1342,8 @@ index e283627..f22f6a3 100644
     }
  
 +#ifdef PNG_MULTY_LINE_ENABLE
-+    if (png_ptr->idat_size != 0 && png_ptr->save_buffer_size != 0)
-+    {
++   if (png_ptr->idat_size != 0 && png_ptr->save_buffer_size != 0)
++   {
 +      if (png_ptr->idat_size <= png_ptr->save_buffer_size)
 +      {
 +         png_debug2(1, "png_IDAT1: idat_size=%d save_buffer_size=%ld",
@@ -1434,10 +1434,10 @@ index e283627..f22f6a3 100644
 +#else
     if (png_ptr->idat_size != 0 && png_ptr->save_buffer_size != 0)
     {
-        size_t save_size = png_ptr->save_buffer_size;
+       size_t save_size = png_ptr->save_buffer_size;
 @@ -612,6 +738,7 @@ png_push_read_IDAT(png_structrp png_ptr)
-        png_ptr->current_buffer_size -= save_size;
-        png_ptr->current_buffer_ptr += save_size;
+       png_ptr->current_buffer_size -= save_size;
+       png_ptr->current_buffer_ptr += save_size;
     }
 +#endif
  
@@ -1564,7 +1564,7 @@ index e283627..f22f6a3 100644
        {
           /* TODO: WARNING: TRUNCATION ERROR: DANGER WILL ROBINSON: */
 +#ifdef PNG_MULTY_LINE_ENABLE
-+         if (png_ptr->interlaced == 0 && png_ptr->bit_depth += 8 &&
++         if (png_ptr->interlaced == 0 && png_ptr->bit_depth == 8 &&
 +             (png_ptr->transformations & PNG_CHECK) == 0)
 +         {
 +            int rest = png_ptr->num_rows - png_ptr->row_number;
