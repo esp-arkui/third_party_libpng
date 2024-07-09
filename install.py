@@ -66,7 +66,7 @@ def do_patch(target_dir):
         "libpng-multilib.patch",
         "backport-libpng-1.6.37-enable-valid.patch",
         "CVE-2018-14048.patch",
-	"libpng_optimize.patch"
+        "libpng_optimize.patch"
     ]
 
     for patch in patch_file:
