@@ -25,7 +25,7 @@ index ab22525..af40b2b 100644
     }
  
     else if (bpp == 4)
-@@ -130,6 +138,12 @@ png_init_filter_functions_neon(png_structp pp, unsigned int bpp)
+@@ -130,6 +130,12 @@ png_init_filter_functions_neon(png_structp pp, unsigned int bpp)
        pp->read_filter[PNG_FILTER_VALUE_AVG-1] = png_read_filter_row_avg4_neon;
        pp->read_filter[PNG_FILTER_VALUE_PAETH-1] =
            png_read_filter_row_paeth4_neon;
