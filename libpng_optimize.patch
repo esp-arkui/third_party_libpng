@@ -25,7 +25,7 @@ index ab22525..af40b2b 100644
     }
  
     else if (bpp == 4)
-@@ -130,6 +138,12 @@ png_init_filter_functions_neon(png_structp pp, unsigned int bpp)
+@@ -130,6 +130,12 @@ png_init_filter_functions_neon(png_structp pp, unsigned int bpp)
        pp->read_filter[PNG_FILTER_VALUE_AVG-1] = png_read_filter_row_avg4_neon;
        pp->read_filter[PNG_FILTER_VALUE_PAETH-1] =
            png_read_filter_row_paeth4_neon;
@@ -1629,24 +1629,6 @@ index 2e426cf..6d60f70 100644
     defined(PNG_ALIGNED_MEMORY_SUPPORTED)
  #     define PNG_ARM_NEON_OPT 2
  #  else
-@@ -189,6 +189,17 @@
- #     define PNG_ARM_NEON_IMPLEMENTATION 0
- #endif /* PNG_ARM_NEON_OPT > 0 */
-
-+#ifdef PNG_ARM_NEON_IMPLEMENTATION
-+#  if PNG_ARM_NEON_IMPLEMENTATION == 1
-+#    define PNG_MULTY_LINE_ENABLE
-+#    define PNG_INFLATE_MAX_SIZE 65536
-+#    define PNG_INFLATE_ROWS 50
-+#    define PNG_CHECK (PNG_EXPAND | PNG_STRIP_ALPHA | PNG_RGB_TO_GRAY | \
-+        PNG_GRAY_TO_RGB | PNG_COMPOSE | PNG_SCALE_16_TO_8 | PNG_16_TO_8 | \
-+        PNG_EXPAND_16 | PNG_PACK)
-+#  endif
-+#endif
-+
- #ifndef PNG_MIPS_MSA_OPT
- #  if defined(__mips_msa) && (__mips_isa_rev >= 5) && defined(PNG_ALIGNED_MEMORY_SUPPORTED)
- #     define PNG_MIPS_MSA_OPT 2
 @@ -1304,6 +1315,18 @@ PNG_INTERNAL_FUNCTION(void,png_read_filter_row_paeth3_neon,(png_row_infop
      row_info, png_bytep row, png_const_bytep prev_row),PNG_EMPTY);
  PNG_INTERNAL_FUNCTION(void,png_read_filter_row_paeth4_neon,(png_row_infop
