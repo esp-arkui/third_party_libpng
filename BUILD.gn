@@ -73,6 +73,25 @@ if (defined(ohos_lite)) {
 
   config("libpng_wno_config") {
     cflags = [ "-Wno-implicit-fallthrough" ]
+    if (is_ohos && is_clang && (target_cpu == "arm" || target_cpu == "arm64")) {
+      ldflags = [ "-Wl,-Bsymbolic" ]
+    }
+    if (target_platform == "pc") {
+      defines = [ "PNG_ARM_NEON" ]
+    }
+  }
+
+  config("libpng_wno_config_static") {
+    cflags = [
+      "-Wno-implicit-fallthrough",
+      "-fvisibility=hidden",
+    ]
+    if (is_ohos && is_clang && (target_cpu == "arm" || target_cpu == "arm64")) {
+      ldflags = [ "-Wl,-Bsymbolic" ]
+    }
+    if (target_platform == "pc") {
+      defines += [ "PNG_ARM_NEON" ]
+    }
   }
 
   ohos_source_set("png_static") {
@@ -86,7 +105,15 @@ if (defined(ohos_lite)) {
   }
 
   ohos_shared_library("libpng") {
-    deps = [ ":libpng_static" ]
+    sources = get_target_outputs(":libpng_action")
+    include_dirs = [ "${target_gen_dir}/libpng-1.6.38/" ]
+    deps = [ ":libpng_action" ]
+    if (is_arkui_x) {
+      deps += [ "//third_party/zlib:libz" ]
+    } else {
+      external_deps = [ "zlib:libz" ]
+    }
+
     public_configs = [ ":libpng_config" ]
     configs = [ ":libpng_wno_config" ]
     innerapi_tags = [
@@ -114,7 +141,7 @@ if (defined(ohos_lite)) {
       external_deps = [ "zlib:libz" ]
     }
     public_configs = [ ":libpng_config" ]
-    configs = [ ":libpng_wno_config" ]
+    configs = [ ":libpng_wno_config_static" ]
     part_name = "libpng"
     subsystem_name = "thirdparty"
   }
