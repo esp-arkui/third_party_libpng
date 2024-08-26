@@ -77,7 +77,7 @@ if (defined(ohos_lite)) {
       ldflags = [ "-Wl,-Bsymbolic" ]
     }
     if (target_platform == "pc") {
-      defines += [ "PNG_ARM_NEON" ]
+      defines = [ "PNG_ARM_NEON" ]
     }
   }
 
