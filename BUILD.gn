@@ -83,7 +83,7 @@ if (defined(ohos_lite)) {
 
   config("libpng_wno_config_static") {
     if (is_ohos && is_clang && (target_cpu == "arm" || target_cpu == "arm64")) {
-      cflags += [ "-fvisibility=hidden" ]
+      cflags = [ "-fvisibility=hidden" ]
     }
   }
 
