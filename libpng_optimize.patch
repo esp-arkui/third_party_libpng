@@ -42,7 +42,7 @@ index 3a89998ab..05aa2c0d9 100644
  }
  #endif /* PNG_ARM_NEON_OPT > 0 */
 diff --git a/arm/filter_neon_intrinsics.c b/arm/filter_neon_intrinsics.c
-index 4466d48b2..4ff810a19 100644
+index 4466d48b2..27048a578 100644
 --- a/arm/filter_neon_intrinsics.c
 +++ b/arm/filter_neon_intrinsics.c
 @@ -47,6 +47,7 @@
@@ -684,11 +684,11 @@ index 4466d48b2..4ff810a19 100644
 +
 +   vdest.val[0] = vhadd_u8(vdest.val[IND3], vpp2);
 +   vdest.val[0] = vadd_u8(vdest.val[0], vrp2);
- 
++
 +   vdest_val2 = png_ldr(uint32x2_t, &vdest);
 +   vst1_lane_u32(png_ptr(uint32_t, rp), vdest_val2, 0);
 +}
-+
+ 
 +void png_read_filter_row_avg4_x2_neon(png_row_infop row_info, png_bytep row,
 +   png_const_bytep prev_row)
 +{
@@ -1406,7 +1406,7 @@ index 4466d48b2..4ff810a19 100644
  #endif /* PNG_ARM_NEON_IMPLEMENTATION == 1 (intrinsics) */
  #endif /* READ */
 diff --git a/pngpread.c b/pngpread.c
-index e283627b7..bb12f61ea 100644
+index e283627b7..43ec512df 100644
 --- a/pngpread.c
 +++ b/pngpread.c
 @@ -264,9 +264,22 @@ png_push_read_chunk(png_structrp png_ptr, png_inforp info_ptr)
@@ -1610,10 +1610,10 @@ index e283627b7..bb12f61ea 100644
     if (png_ptr->transformations != 0)
        png_do_read_transformations(png_ptr, &row_info);
 diff --git a/pngpriv.h b/pngpriv.h
-index fb521cf00..81300fbd8 100644
+index fb521cf00..6027d9acc 100644
 --- a/pngpriv.h
 +++ b/pngpriv.h
-@@ -189,6 +189,19 @@
+@@ -189,6 +189,20 @@
  #     define PNG_ARM_NEON_IMPLEMENTATION 0
  #endif /* PNG_ARM_NEON_OPT > 0 */
  
@@ -1621,6 +1621,7 @@ index fb521cf00..81300fbd8 100644
 +// OH ISSUE: png optimize
 +#  if PNG_ARM_NEON_IMPLEMENTATION == 1
 +#    define PNG_MULTY_LINE_ENABLE
++#    define PNG_WRITE_NEON_ENABLE
 +#    define PNG_INFLATE_MAX_SIZE (65536)
 +#    define PNG_INFLATE_ROWS (50)
 +#    define PNG_CHECK (PNG_EXPAND | PNG_STRIP_ALPHA | PNG_RGB_TO_GRAY | PNG_ENCODE_ALPHA | \
@@ -1633,7 +1634,7 @@ index fb521cf00..81300fbd8 100644
  #ifndef PNG_MIPS_MSA_OPT
  #  if defined(__mips_msa) && (__mips_isa_rev >= 5) && defined(PNG_ALIGNED_MEMORY_SUPPORTED)
  #     define PNG_MIPS_MSA_OPT 2
-@@ -351,8 +364,14 @@
+@@ -351,8 +365,14 @@
  #endif
  
  #ifndef PNG_INTERNAL_FUNCTION
@@ -1649,7 +1650,7 @@ index fb521cf00..81300fbd8 100644
  #endif
  
  #ifndef PNG_INTERNAL_CALLBACK
-@@ -1304,6 +1323,19 @@ PNG_INTERNAL_FUNCTION(void,png_read_filter_row_paeth3_neon,(png_row_infop
+@@ -1304,6 +1324,50 @@ PNG_INTERNAL_FUNCTION(void,png_read_filter_row_paeth3_neon,(png_row_infop
      row_info, png_bytep row, png_const_bytep prev_row),PNG_EMPTY);
  PNG_INTERNAL_FUNCTION(void,png_read_filter_row_paeth4_neon,(png_row_infop
      row_info, png_bytep row, png_const_bytep prev_row),PNG_EMPTY);
@@ -1666,11 +1667,42 @@ index fb521cf00..81300fbd8 100644
 +PNG_INTERNAL_FUNCTION(void, png_read_filter_row_paeth4_x2_neon, (png_row_infop
 +    row_info, png_bytep row, png_const_bytep prev_row), PNG_EMPTY);
 +#endif
++#ifdef PNG_WRITE_NEON_ENABLE
++// OH ISSUE: png optimize
++PNG_INTERNAL_FUNCTION(size_t, png_write_filter_sub3_neon, (png_structrp
++    png_ptr, size_t row_bytes, size_t lmins), PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(void, png_write_filter_sub3_neon_only, (png_structrp
++    png_ptr, size_t row_bytes), PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(size_t, png_write_filter_sub4_neon, (png_structrp
++    png_ptr, size_t row_bytes, size_t lmins), PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(void, png_write_filter_sub4_neon_only, (png_structrp
++    png_ptr, size_t row_bytes), PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(size_t, png_write_filter_up_neon, (png_structrp
++    png_ptr, size_t row_bytes, size_t lmins), PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(void, png_write_filter_up_neon_only, (png_structrp
++    png_ptr, size_t row_bytes), PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(size_t, png_write_filter_avg3_neon, (png_structrp
++    png_ptr, size_t row_bytes, size_t lmins), PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(void, png_write_filter_avg3_neon_only, (png_structrp
++    png_ptr, size_t row_bytes), PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(size_t, png_write_filter_avg4_neon, (png_structrp
++    png_ptr, size_t row_bytes, size_t lmins), PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(void, png_write_filter_avg4_neon_only, (png_structrp
++    png_ptr, size_t row_bytes), PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(size_t, png_write_filter_paeth3_neon, (png_structrp
++    png_ptr, size_t row_bytes, size_t lmins), PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(void, png_write_filter_paeth3_neon_only, (png_structrp
++    png_ptr, size_t row_bytes), PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(size_t, png_write_filter_paeth4_neon, (png_structrp
++    png_ptr, size_t row_bytes, size_t lmins), PNG_EMPTY);
++PNG_INTERNAL_FUNCTION(void, png_write_filter_paeth4_neon_only, (png_structrp
++    png_ptr, size_t row_bytes), PNG_EMPTY);
++#endif
  #endif
  
  #if PNG_MIPS_MSA_OPT > 0
 diff --git a/pngread.c b/pngread.c
-index 8fa7d9f16..ed5a25307 100644
+index 8fa7d9f16..71be1a26c 100644
 --- a/pngread.c
 +++ b/pngread.c
 @@ -54,7 +54,12 @@ png_create_read_struct_2,(png_const_charp user_png_ver, png_voidp error_ptr,
@@ -1963,7 +1995,7 @@ index 8fa7d9f16..ed5a25307 100644
     }
  }
 diff --git a/pngrutil.c b/pngrutil.c
-index 9ac8ec11f..f9c65927d 100644
+index 9ac8ec11f..8afdf4fa5 100644
 --- a/pngrutil.c
 +++ b/pngrutil.c
 @@ -4134,7 +4134,12 @@ png_read_filter_row(png_structrp pp, png_row_infop row_info, png_bytep row,
@@ -2039,7 +2071,7 @@ index e591d94d5..7c3846475 100644
  #ifdef PNG_READ_SUPPORTED
  #if defined(PNG_COLORSPACE_SUPPORTED) || defined(PNG_GAMMA_SUPPORTED)
 diff --git a/pngtrans.c b/pngtrans.c
-index 1100f46eb..9addf3423 100644
+index 1100f46eb..99736747a 100644
 --- a/pngtrans.c
 +++ b/pngtrans.c
 @@ -13,6 +13,19 @@
@@ -2268,3 +2300,1108 @@ index 1100f46eb..9addf3423 100644
              {
                 png_byte save = *rp;
                 *rp = *(rp + 4);
+diff --git a/pngwutil.c b/pngwutil.c
+index 16345e4c0..212c090b6 100644
+--- a/pngwutil.c
++++ b/pngwutil.c
+@@ -16,6 +16,20 @@
+ #ifdef PNG_WRITE_SUPPORTED
+ 
+ #ifdef PNG_WRITE_INT_FUNCTIONS_SUPPORTED
++#ifdef PNG_WRITE_NEON_ENABLE
++// OH ISSUE: png optimize
++#  if defined(_MSC_VER) && !defined(__clang__) && defined(_M_ARM64)
++#    include <arm64_neon.h>
++#  else
++#    include <arm_neon.h>
++#  endif
++#  define STEP 16
++#  define MID 128
++#  define SHIFT_RGB 13
++#  define SHIFT_RGBA 12
++#  define BYTE_RGB 3
++#  define BYTE_RGBA 4
++#endif
+ /* Place a 32-bit number into a buffer in PNG byte order.  We work
+  * with unsigned numbers for convenience, although one supported
+  * ancillary chunk uses signed (two's complement) numbers.
+@@ -2275,10 +2289,939 @@ png_write_filtered_row(png_structrp png_ptr, png_bytep filtered_row,
+     size_t row_bytes);
+ 
+ #ifdef PNG_WRITE_FILTER_SUPPORTED
++#ifdef PNG_WRITE_NEON_ENABLE
++size_t png_write_filter_sub3_neon(png_structrp png_ptr,
++    size_t row_bytes, size_t lmins)
++{
++   size_t sum = 0;
++   png_bytep rp = png_ptr->row_buf + 1;
++   png_bytep dp = png_ptr->try_row + 1;
++   png_ptr->try_row[0] = PNG_FILTER_VALUE_SUB;
++
++   size_t count = row_bytes;
++   uint8x16_t tmp = vdupq_n_u8(0);
++   while (count >= STEP)
++   {
++      uint8x16_t qrp = vld1q_u8(rp);
++      uint8x16_t qlp = vextq_u8(tmp, qrp, SHIFT_RGB);
++      uint8x16_t qdp = vsubq_u8(qrp, qlp);
++      vst1q_u8(dp, qdp);
++      tmp = qrp;
++      int8x16_t v_s = vreinterpretq_s8_u8(qdp);
++      v_s = vabsq_s8(v_s);
++      uint8x16_t v_u = vreinterpretq_u8_s8(v_s);
++      sum += vaddlvq_u8(v_u);
++      rp += STEP;
++      dp += STEP;
++      count -= STEP;
++      if (sum > lmins)
++      {
++         return sum;
++      }
++   }
++
++   if (count == row_bytes)
++   {
++      dp[0] = rp[0];
++      dp[1] = rp[1];
++      dp[2] = rp[2];
++      sum += MID - abs((int)dp[0] - MID);
++      sum += MID - abs((int)dp[1] - MID);
++      sum += MID - abs((int)dp[2] - MID);
++      rp += BYTE_RGB;
++      dp += BYTE_RGB;
++      count -= BYTE_RGB;
++   }
++
++   png_bytep lp = rp - BYTE_RGB;
++   while (count > 0)
++   {
++      *dp = (png_byte)(((int)*rp++ - (int)*lp++) & 0xff);
++      sum += MID - abs((int)*dp++ - MID);
++      count--;
++      if (sum > lmins)
++      {
++         return sum;
++      }
++   }
++   return sum;
++}
++
++void png_write_filter_sub3_neon_only(png_structrp png_ptr,
++    size_t row_bytes)
++{
++   png_bytep rp = png_ptr->row_buf + 1;
++   png_bytep dp = png_ptr->try_row + 1;
++   png_ptr->try_row[0] = PNG_FILTER_VALUE_SUB;
++
++   size_t count = row_bytes;
++   uint8x16_t tmp = vdupq_n_u8(0);
++   while (count >= STEP)
++   {
++      uint8x16_t qrp = vld1q_u8(rp);
++      uint8x16_t qlp = vextq_u8(tmp, qrp, SHIFT_RGB);
++      uint8x16_t qdp = vsubq_u8(qrp, qlp);
++      vst1q_u8(dp, qdp);
++      tmp = qrp;
++      rp += STEP;
++      dp += STEP;
++      count -= STEP;
++   }
++
++   if (count == row_bytes)
++   {
++      dp[0] = rp[0];
++      dp[1] = rp[1];
++      dp[2] = rp[2];
++      rp += BYTE_RGB;
++      dp += BYTE_RGB;
++      count -= BYTE_RGB;
++   }
++
++   png_bytep lp = rp - BYTE_RGB;
++   while (count > 0)
++   {
++      *dp++ = (png_byte)(((int)*rp++ - (int)*lp++) & 0xff);
++      count--;
++   }
++}
++
++size_t png_write_filter_sub4_neon(png_structrp png_ptr,
++    size_t row_bytes, size_t lmins)
++{
++   size_t sum = 0;
++   png_bytep rp = png_ptr->row_buf + 1;
++   png_bytep dp = png_ptr->try_row + 1;
++   png_ptr->try_row[0] = PNG_FILTER_VALUE_SUB;
++
++   size_t count = row_bytes;
++   uint8x16_t tmp = vdupq_n_u8(0);
++   while (count >= STEP)
++   {
++      uint8x16_t qrp = vld1q_u8(rp);
++      uint8x16_t qlp = vextq_u8(tmp, qrp, SHIFT_RGBA);
++      uint8x16_t qdp = vsubq_u8(qrp, qlp);
++      vst1q_u8(dp, qdp);
++      tmp = qrp;
++      int8x16_t v_s = vreinterpretq_s8_u8(qdp);
++      v_s = vabsq_s8(v_s);
++      uint8x16_t v_u = vreinterpretq_u8_s8(v_s);
++      sum += vaddlvq_u8(v_u);
++      rp += STEP;
++      dp += STEP;
++      count -= STEP;
++      if (sum > lmins)
++      {
++         return sum;
++      }
++   }
++
++   if (count == row_bytes)
++   {
++      dp[0] = rp[0];
++      dp[1] = rp[1];
++      dp[2] = rp[2];
++      dp[3] = rp[3];
++      sum += MID - abs((int)dp[0] - MID);
++      sum += MID - abs((int)dp[1] - MID);
++      sum += MID - abs((int)dp[2] - MID);
++      sum += MID - abs((int)dp[3] - MID);
++      rp += BYTE_RGBA;
++      dp += BYTE_RGBA;
++      count -= BYTE_RGBA;
++   }
++
++   png_bytep lp = rp - BYTE_RGBA;
++   while (count > 0)
++   {
++      *dp = (png_byte)(((int)*rp++ - (int)*lp++) & 0xff);
++      sum += MID - abs((int)*dp++ - MID);
++      count--;
++      if (sum > lmins)
++      {
++         return sum;
++      }
++   }
++   return sum;
++}
++
++void png_write_filter_sub4_neon_only(png_structrp png_ptr,
++    size_t row_bytes)
++{
++   png_bytep rp = png_ptr->row_buf + 1;
++   png_bytep dp = png_ptr->try_row + 1;
++   png_ptr->try_row[0] = PNG_FILTER_VALUE_SUB;
++
++   size_t count = row_bytes;
++   uint8x16_t tmp = vdupq_n_u8(0);
++   while (count >= STEP)
++   {
++      uint8x16_t qrp = vld1q_u8(rp);
++      uint8x16_t qlp = vextq_u8(tmp, qrp, SHIFT_RGBA);
++      uint8x16_t qdp = vsubq_u8(qrp, qlp);
++      vst1q_u8(dp, qdp);
++      tmp = qrp;
++      rp += STEP;
++      dp += STEP;
++      count -= STEP;
++   }
++
++   if (count == row_bytes)
++   {
++      dp[0] = rp[0];
++      dp[1] = rp[1];
++      dp[2] = rp[2];
++      dp[3] = rp[3];
++      rp += BYTE_RGBA;
++      dp += BYTE_RGBA;
++      count -= BYTE_RGBA;
++   }
++
++   png_bytep lp = rp - BYTE_RGBA;
++   while (count > 0)
++   {
++      *dp++ = (png_byte)(((int)*rp++ - (int)*lp++) & 0xff);
++      count--;
++   }
++}
++
++size_t png_write_filter_up_neon(png_structrp png_ptr,
++    size_t row_bytes, size_t lmins)
++{
++   size_t sum = 0;
++   png_bytep rp = png_ptr->row_buf + 1;
++   png_bytep dp = png_ptr->try_row + 1;
++   png_bytep pp = png_ptr->prev_row + 1;
++   png_ptr->try_row[0] = PNG_FILTER_VALUE_UP;
++
++   size_t count = row_bytes;
++   while (count >= STEP)
++   {
++      uint8x16_t qrp = vld1q_u8(rp);
++      uint8x16_t qpp = vld1q_u8(pp);
++      uint8x16_t qdp = vsubq_u8(qrp, qpp);
++      vst1q_u8(dp, qdp);
++      int8x16_t v_s = vreinterpretq_s8_u8(qdp);
++      v_s = vabsq_s8(v_s);
++      uint8x16_t v_u = vreinterpretq_u8_s8(v_s);
++      sum += vaddlvq_u8(v_u);
++      rp += STEP;
++      pp += STEP;
++      dp += STEP;
++      count -= STEP;
++      if (sum > lmins)
++      {
++         return sum;
++      }
++   }
++
++   while (count > 0)
++   {
++      *dp = (png_byte)(((int)*rp++ - (int)*pp++) & 0xff);
++      sum += MID - abs((int)*dp++ - MID);
++      count--;
++      if (sum > lmins)
++      {
++         return sum;
++      }
++   }
++   return sum;
++}
++
++void png_write_filter_up_neon_only(png_structrp png_ptr, size_t row_bytes)
++{
++   png_bytep rp = png_ptr->row_buf + 1;
++   png_bytep dp = png_ptr->try_row + 1;
++   png_bytep pp = png_ptr->prev_row + 1;
++   png_ptr->try_row[0] = PNG_FILTER_VALUE_UP;
++
++   size_t count = row_bytes;
++   while (count >= STEP)
++   {
++      uint8x16_t qrp = vld1q_u8(rp);
++      uint8x16_t qpp = vld1q_u8(pp);
++      uint8x16_t qdp = vsubq_u8(qrp, qpp);
++      vst1q_u8(dp, qdp);
++      rp += STEP;
++      pp += STEP;
++      dp += STEP;
++      count -= STEP;
++   }
++
++   while (count > 0)
++   {
++      *dp++ = (png_byte)(((int)*rp++ - (int)*pp++) & 0xff);
++      count--;
++   }
++}
++
++size_t png_write_filter_avg3_neon(png_structrp png_ptr,
++    size_t row_bytes, size_t lmins)
++{
++   size_t sum = 0;
++   png_bytep rp = png_ptr->row_buf + 1;
++   png_bytep pp = png_ptr->prev_row + 1;
++   png_bytep dp = png_ptr->try_row + 1;
++   png_ptr->try_row[0] = PNG_FILTER_VALUE_AVG;
++
++   size_t count = row_bytes;
++   uint8x16_t tmp = vdupq_n_u8(0);
++   while (count >= STEP)
++   {
++      uint8x16_t qrp = vld1q_u8(rp);
++      uint8x16_t qpp = vld1q_u8(pp);
++      uint8x16_t qlp = vextq_u8(tmp, qrp, SHIFT_RGB);
++      qlp = vhaddq_u8(qpp, qlp);
++      uint8x16_t qdp = vsubq_u8(qrp, qlp);
++      vst1q_u8(dp, qdp);
++      int8x16_t v_s = vreinterpretq_s8_u8(qdp);
++      v_s = vabsq_s8(v_s);
++      uint8x16_t v_u = vreinterpretq_u8_s8(v_s);
++      sum += vaddlvq_u8(v_u);
++      tmp = qrp;
++      rp += STEP;
++      pp += STEP;
++      dp += STEP;
++      count -= STEP;
++      if (sum > lmins)
++      {
++         return sum;
++      }
++   }
++
++   if (count == row_bytes)
++   {
++      dp[0] = (png_byte)(((int)rp[0] - ((int)pp[0] / 2)) & 0xff);
++      dp[1] = (png_byte)(((int)rp[1] - ((int)pp[1] / 2)) & 0xff);
++      dp[2] = (png_byte)(((int)rp[2] - ((int)pp[2] / 2)) & 0xff);
++      sum += MID - abs((int)dp[0] - MID);
++      sum += MID - abs((int)dp[1] - MID);
++      sum += MID - abs((int)dp[2] - MID);
++      rp += BYTE_RGB;
++      pp += BYTE_RGB;
++      dp += BYTE_RGB;
++      count -= BYTE_RGB;
++   }
++
++   png_bytep lp = rp - BYTE_RGB;
++   while (count > 0)
++   {
++      *dp = (png_byte)(((int)*rp++ - (((int)*pp++ + (int)*lp++) / 2)) & 0xff);
++      count--;
++      sum += MID - abs((int)*dp++ - MID);
++      if (sum > lmins)
++      {
++         return sum;
++      }
++   }
++   return sum;
++}
++
++void png_write_filter_avg3_neon_only(png_structrp png_ptr,
++    size_t row_bytes)
++{
++   png_bytep rp = png_ptr->row_buf + 1;
++   png_bytep pp = png_ptr->prev_row + 1;
++   png_bytep dp = png_ptr->try_row + 1;
++   png_ptr->try_row[0] = PNG_FILTER_VALUE_AVG;
++
++   size_t count = row_bytes;
++   uint8x16_t tmp = vdupq_n_u8(0);
++   while (count >= STEP)
++   {
++      uint8x16_t qrp = vld1q_u8(rp);
++      uint8x16_t qpp = vld1q_u8(pp);
++      uint8x16_t qlp = vextq_u8(tmp, qrp, SHIFT_RGB);
++      qlp = vhaddq_u8(qpp, qlp);
++      uint8x16_t qdp = vsubq_u8(qrp, qlp);
++      vst1q_u8(dp, qdp);
++      tmp = qrp;
++      rp += STEP;
++      pp += STEP;
++      dp += STEP;
++      count -= STEP;
++   }
++
++   if (count == row_bytes)
++   {
++      dp[0] = (png_byte)(((int)rp[0] - ((int)pp[0] / 2)) & 0xff);
++      dp[1] = (png_byte)(((int)rp[1] - ((int)pp[1] / 2)) & 0xff);
++      dp[2] = (png_byte)(((int)rp[2] - ((int)pp[2] / 2)) & 0xff);
++      rp += BYTE_RGB;
++      pp += BYTE_RGB;
++      dp += BYTE_RGB;
++      count -= BYTE_RGB;
++   }
++
++   png_bytep lp = rp - BYTE_RGB;
++   while (count > 0)
++   {
++      *dp++ = (png_byte)(((int)*rp++ - (((int)*pp++ + (int)*lp++) / 2)) & 0xff);
++      count--;
++   }
++}
++
++size_t png_write_filter_avg4_neon(png_structrp png_ptr,
++    size_t row_bytes, size_t lmins)
++{
++   size_t sum = 0;
++   png_bytep rp = png_ptr->row_buf + 1;
++   png_bytep pp = png_ptr->prev_row + 1;
++   png_bytep dp = png_ptr->try_row + 1;
++   png_ptr->try_row[0] = PNG_FILTER_VALUE_AVG;
++
++   size_t count = row_bytes;
++   uint8x16_t tmp = vdupq_n_u8(0);
++   while (count >= STEP)
++   {
++      uint8x16_t qrp = vld1q_u8(rp);
++      uint8x16_t qpp = vld1q_u8(pp);
++      uint8x16_t qlp = vextq_u8(tmp, qrp, SHIFT_RGBA);
++      qlp = vhaddq_u8(qpp, qlp);
++      uint8x16_t qdp = vsubq_u8(qrp, qlp);
++      vst1q_u8(dp, qdp);
++      int8x16_t v_s = vreinterpretq_s8_u8(qdp);
++      v_s = vabsq_s8(v_s);
++      uint8x16_t v_u = vreinterpretq_u8_s8(v_s);
++      sum += vaddlvq_u8(v_u);
++      tmp = qrp;
++      rp += STEP;
++      pp += STEP;
++      dp += STEP;
++      count -= STEP;
++      if (sum > lmins)
++      {
++         return sum;
++      }
++   }
++
++   if (count == row_bytes)
++   {
++      dp[0] = (png_byte)(((int)rp[0] - ((int)pp[0] / 2)) & 0xff);
++      dp[1] = (png_byte)(((int)rp[1] - ((int)pp[1] / 2)) & 0xff);
++      dp[2] = (png_byte)(((int)rp[2] - ((int)pp[2] / 2)) & 0xff);
++      dp[3] = (png_byte)(((int)rp[3] - ((int)pp[3] / 2)) & 0xff);
++      sum += MID - abs((int)dp[0] - MID);
++      sum += MID - abs((int)dp[1] - MID);
++      sum += MID - abs((int)dp[2] - MID);
++      sum += MID - abs((int)dp[3] - MID);
++      rp += BYTE_RGBA;
++      pp += BYTE_RGBA;
++      dp += BYTE_RGBA;
++      count -= BYTE_RGBA;
++   }
++
++   png_bytep lp = rp - BYTE_RGBA;
++   while (count > 0)
++   {
++      *dp = (png_byte)(((int)*rp++ - (((int)*pp++ + (int)*lp++) / 2)) & 0xff);
++      count--;
++      sum += MID - abs((int)*dp++ - MID);
++      if (sum > lmins)
++      {
++         return sum;
++      }
++   }
++   return sum;
++}
++
++void png_write_filter_avg4_neon_only(png_structrp png_ptr,
++    size_t row_bytes)
++{
++   png_bytep rp = png_ptr->row_buf + 1;
++   png_bytep pp = png_ptr->prev_row + 1;
++   png_bytep dp = png_ptr->try_row + 1;
++   png_ptr->try_row[0] = PNG_FILTER_VALUE_AVG;
++
++   size_t count = row_bytes;
++   uint8x16_t tmp = vdupq_n_u8(0);
++   while (count >= STEP)
++   {
++      uint8x16_t qrp = vld1q_u8(rp);
++      uint8x16_t qpp = vld1q_u8(pp);
++      uint8x16_t qlp = vextq_u8(tmp, qrp, SHIFT_RGBA);
++      qlp = vhaddq_u8(qpp, qlp);
++      uint8x16_t qdp = vsubq_u8(qrp, qlp);
++      vst1q_u8(dp, qdp);
++      tmp = qrp;
++      rp += STEP;
++      pp += STEP;
++      dp += STEP;
++      count -= STEP;
++   }
++
++   if (count == row_bytes)
++   {
++      dp[0] = (png_byte)(((int)rp[0] - ((int)pp[0] / 2)) & 0xff);
++      dp[1] = (png_byte)(((int)rp[1] - ((int)pp[1] / 2)) & 0xff);
++      dp[2] = (png_byte)(((int)rp[2] - ((int)pp[2] / 2)) & 0xff);
++      dp[3] = (png_byte)(((int)rp[3] - ((int)pp[3] / 2)) & 0xff);
++      rp += BYTE_RGBA;
++      pp += BYTE_RGBA;
++      dp += BYTE_RGBA;
++      count -= BYTE_RGBA;
++   }
++
++   png_bytep lp = rp - BYTE_RGBA;
++   while (count > 0)
++   {
++      *dp++ = (png_byte)(((int)*rp++ - (((int)*pp++ + (int)*lp++) / 2)) & 0xff);
++      count--;
++   }
++}
++
++size_t png_write_filter_paeth3_neon(png_structrp png_ptr,
++    size_t row_bytes, size_t lmins)
++{
++   size_t sum = 0;
++   png_bytep rp = png_ptr->row_buf + 1;
++   png_bytep pp = png_ptr->prev_row + 1;
++   png_bytep dp = png_ptr->try_row + 1;
++   png_ptr->try_row[0] = PNG_FILTER_VALUE_PAETH;
++
++   size_t count = row_bytes;
++   uint8x16_t tmp_a = vdupq_n_u8(0);
++   uint8x16_t tmp_c = vdupq_n_u8(0);
++   while (count >= STEP)
++   {
++      uint8x16_t qrp = vld1q_u8(rp);
++      uint8x16_t b = vld1q_u8(pp);
++      uint8x16_t a = vextq_u8(tmp_a, qrp, SHIFT_RGB);
++      uint8x16_t c = vextq_u8(tmp_c, b, SHIFT_RGB);
++      tmp_a = qrp;
++      tmp_c = b;
++
++      int16x8_t a_hign = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(a)));
++      int16x8_t a_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(a)));
++      int16x8_t b_hign = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(b)));
++      int16x8_t b_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(b)));
++      int16x8_t c_hign = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(c)));
++      int16x8_t c_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(c)));
++
++      int16x8_t p = vsubq_s16(b_hign, c_hign);
++      int16x8_t pc = vsubq_s16(a_hign, c_hign);
++      int16x8_t pa = vabsq_s16(p);
++      int16x8_t pb = vabsq_s16(pc);
++      pc = vabsq_s16(vaddq_s16(p, pc));
++      uint16x8_t p1_u = vcleq_s16(pa, pb);
++      uint16x8_t pa_u = vcleq_s16(pa, pc);
++      uint16x8_t pb_u = vcleq_s16(pb, pc);
++      p1_u = vandq_u16(p1_u, pa_u);
++      uint8x8_t d_hign = vmovn_u16(pb_u);
++      uint8x8_t e_hign = vmovn_u16(p1_u);
++
++      p = vsubq_s16(b_low, c_low);
++      pc = vsubq_s16(a_low, c_low);
++      pa = vabsq_s16(p);
++      pb = vabsq_s16(pc);
++      pc = vabsq_s16(vaddq_s16(p, pc));
++      p1_u = vcleq_s16(pa, pb);
++      pa_u = vcleq_s16(pa, pc);
++      pb_u = vcleq_s16(pb, pc);
++      p1_u = vandq_u16(p1_u, pa_u);
++      uint8x8_t d_low = vmovn_u16(pb_u);
++      uint8x8_t e_low = vmovn_u16(p1_u);
++
++      uint8x16_t d = vcombine_u8(d_low, d_hign);
++      uint8x16_t e = vcombine_u8(e_low, e_hign);
++      d = vbslq_u8(d, b, c);
++      e = vbslq_u8(e, a, d);
++
++      uint8x16_t qdp = vsubq_u8(qrp, e);
++      vst1q_u8(dp, qdp);
++      int8x16_t v_s = vreinterpretq_s8_u8(qdp);
++      v_s = vabsq_s8(v_s);
++      uint8x16_t v_u = vreinterpretq_u8_s8(v_s);
++      sum += vaddlvq_u8(v_u);
++
++      rp += STEP;
++      pp += STEP;
++      dp += STEP;
++      count -= STEP;
++      if (sum > lmins)
++      {
++         return sum;
++      }
++   }
++
++   if (count == row_bytes)
++   {
++      dp[0] = (png_byte)(((int)rp[0] - (int)pp[0]) & 0xff);
++      dp[1] = (png_byte)(((int)rp[1] - (int)pp[1]) & 0xff);
++      dp[2] = (png_byte)(((int)rp[2] - (int)pp[2]) & 0xff);
++      sum += MID - abs((int)dp[0] - MID);
++      sum += MID - abs((int)dp[1] - MID);
++      sum += MID - abs((int)dp[2] - MID);
++      rp += BYTE_RGB;
++      pp += BYTE_RGB;
++      dp += BYTE_RGB;
++      count -= BYTE_RGB;
++   }
++
++   png_bytep cp = pp - BYTE_RGB;
++   png_bytep lp = rp - BYTE_RGB;
++   while (count > 0)
++   {
++      int a, b, c, pa, pb, pc, p;
++
++      b = *pp++;
++      c = *cp++;
++      a = *lp++;
++
++      p = b - c;
++      pc = a - c;
++
++      pa = abs(p);
++      pb = abs(pc);
++      pc = abs(p + pc);
++
++      p = (pa <= pb && pa <=pc) ? a : (pb <= pc) ? b : c;
++      *dp = (png_byte)(((int)*rp++ - p) & 0xff);
++
++      count--;
++      sum += MID - abs((int)*dp++ - MID);
++      if (sum > lmins)
++      {
++         return sum;
++      }
++   }
++   return sum;
++}
++
++void png_write_filter_paeth3_neon_only(png_structrp png_ptr,
++    size_t row_bytes)
++{
++   png_bytep rp = png_ptr->row_buf + 1;
++   png_bytep pp = png_ptr->prev_row + 1;
++   png_bytep dp = png_ptr->try_row + 1;
++   png_ptr->try_row[0] = PNG_FILTER_VALUE_PAETH;
++
++   size_t count = row_bytes;
++   uint8x16_t tmp_a = vdupq_n_u8(0);
++   uint8x16_t tmp_c = vdupq_n_u8(0);
++   while (count >= STEP)
++   {
++      uint8x16_t qrp = vld1q_u8(rp);
++      uint8x16_t b = vld1q_u8(pp);
++      uint8x16_t a = vextq_u8(tmp_a, qrp, SHIFT_RGB);
++      uint8x16_t c = vextq_u8(tmp_c, b, SHIFT_RGB);
++      tmp_a = qrp;
++      tmp_c = b;
++
++      int16x8_t a_hign = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(a)));
++      int16x8_t a_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(a)));
++      int16x8_t b_hign = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(b)));
++      int16x8_t b_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(b)));
++      int16x8_t c_hign = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(c)));
++      int16x8_t c_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(c)));
++
++      int16x8_t p = vsubq_s16(b_hign, c_hign);
++      int16x8_t pc = vsubq_s16(a_hign, c_hign);
++      int16x8_t pa = vabsq_s16(p);
++      int16x8_t pb = vabsq_s16(pc);
++      pc = vabsq_s16(vaddq_s16(p, pc));
++      uint16x8_t p1_u = vcleq_s16(pa, pb);
++      uint16x8_t pa_u = vcleq_s16(pa, pc);
++      uint16x8_t pb_u = vcleq_s16(pb, pc);
++      p1_u = vandq_u16(p1_u, pa_u);
++      uint8x8_t d_hign = vmovn_u16(pb_u);
++      uint8x8_t e_hign = vmovn_u16(p1_u);
++
++      p = vsubq_s16(b_low, c_low);
++      pc = vsubq_s16(a_low, c_low);
++      pa = vabsq_s16(p);
++      pb = vabsq_s16(pc);
++      pc = vabsq_s16(vaddq_s16(p, pc));
++      p1_u = vcleq_s16(pa, pb);
++      pa_u = vcleq_s16(pa, pc);
++      pb_u = vcleq_s16(pb, pc);
++      p1_u = vandq_u16(p1_u, pa_u);
++      uint8x8_t d_low = vmovn_u16(pb_u);
++      uint8x8_t e_low = vmovn_u16(p1_u);
++
++      uint8x16_t d = vcombine_u8(d_low, d_hign);
++      uint8x16_t e = vcombine_u8(e_low, e_hign);
++      d = vbslq_u8(d, b, c);
++      e = vbslq_u8(e, a, d);
++
++      uint8x16_t qdp = vsubq_u8(qrp, e);
++      vst1q_u8(dp, qdp);
++
++      rp += STEP;
++      pp += STEP;
++      dp += STEP;
++      count -= STEP;
++   }
++
++   if (count == row_bytes)
++   {
++      dp[0] = (png_byte)(((int)rp[0] - (int)pp[0]) & 0xff);
++      dp[1] = (png_byte)(((int)rp[1] - (int)pp[1]) & 0xff);
++      dp[2] = (png_byte)(((int)rp[2] - (int)pp[2]) & 0xff);
++      rp += BYTE_RGB;
++      pp += BYTE_RGB;
++      dp += BYTE_RGB;
++      count -= BYTE_RGB;
++   }
++
++   png_bytep cp = pp - BYTE_RGB;
++   png_bytep lp = rp - BYTE_RGB;
++   while (count > 0)
++   {
++      int a, b, c, pa, pb, pc, p;
++
++      b = *pp++;
++      c = *cp++;
++      a = *lp++;
++
++      p = b - c;
++      pc = a - c;
++
++      pa = abs(p);
++      pb = abs(pc);
++      pc = abs(p + pc);
++
++      p = (pa <= pb && pa <=pc) ? a : (pb <= pc) ? b : c;
++      *dp++ = (png_byte)(((int)*rp++ - p) & 0xff);
++      count--;
++   }
++}
++
++size_t png_write_filter_paeth4_neon(png_structrp png_ptr,
++    size_t row_bytes, size_t lmins)
++{
++   size_t sum = 0;
++   png_bytep rp = png_ptr->row_buf + 1;
++   png_bytep pp = png_ptr->prev_row + 1;
++   png_bytep dp = png_ptr->try_row + 1;
++   png_ptr->try_row[0] = PNG_FILTER_VALUE_PAETH;
++
++   size_t count = row_bytes;
++   uint8x16_t tmp_a = vdupq_n_u8(0);
++   uint8x16_t tmp_c = vdupq_n_u8(0);
++   while (count >= STEP)
++   {
++      uint8x16_t qrp = vld1q_u8(rp);
++      uint8x16_t b = vld1q_u8(pp);
++      uint8x16_t a = vextq_u8(tmp_a, qrp, SHIFT_RGBA);
++      uint8x16_t c = vextq_u8(tmp_c, b, SHIFT_RGBA);
++      tmp_a = qrp;
++      tmp_c = b;
++
++      int16x8_t a_hign = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(a)));
++      int16x8_t a_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(a)));
++      int16x8_t b_hign = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(b)));
++      int16x8_t b_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(b)));
++      int16x8_t c_hign = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(c)));
++      int16x8_t c_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(c)));
++
++      int16x8_t p = vsubq_s16(b_hign, c_hign);
++      int16x8_t pc = vsubq_s16(a_hign, c_hign);
++      int16x8_t pa = vabsq_s16(p);
++      int16x8_t pb = vabsq_s16(pc);
++      pc = vabsq_s16(vaddq_s16(p, pc));
++      uint16x8_t p1_u = vcleq_s16(pa, pb);
++      uint16x8_t pa_u = vcleq_s16(pa, pc);
++      uint16x8_t pb_u = vcleq_s16(pb, pc);
++      p1_u = vandq_u16(p1_u, pa_u);
++      uint8x8_t d_hign = vmovn_u16(pb_u);
++      uint8x8_t e_hign = vmovn_u16(p1_u);
++
++      p = vsubq_s16(b_low, c_low);
++      pc = vsubq_s16(a_low, c_low);
++      pa = vabsq_s16(p);
++      pb = vabsq_s16(pc);
++      pc = vabsq_s16(vaddq_s16(p, pc));
++      p1_u = vcleq_s16(pa, pb);
++      pa_u = vcleq_s16(pa, pc);
++      pb_u = vcleq_s16(pb, pc);
++      p1_u = vandq_u16(p1_u, pa_u);
++      uint8x8_t d_low = vmovn_u16(pb_u);
++      uint8x8_t e_low = vmovn_u16(p1_u);
++
++      uint8x16_t d = vcombine_u8(d_low, d_hign);
++      uint8x16_t e = vcombine_u8(e_low, e_hign);
++      d = vbslq_u8(d, b, c);
++      e = vbslq_u8(e, a, d);
++
++      uint8x16_t qdp = vsubq_u8(qrp, e);
++      vst1q_u8(dp, qdp);
++      int8x16_t v_s = vreinterpretq_s8_u8(qdp);
++      v_s = vabsq_s8(v_s);
++      uint8x16_t v_u = vreinterpretq_u8_s8(v_s);
++      sum += vaddlvq_u8(v_u);
++
++      rp += STEP;
++      pp += STEP;
++      dp += STEP;
++      count -= STEP;
++      if (sum > lmins)
++      {
++         return sum;
++      }
++   }
++
++   if (count == row_bytes)
++   {
++      dp[0] = (png_byte)(((int)rp[0] - (int)pp[0]) & 0xff);
++      dp[1] = (png_byte)(((int)rp[1] - (int)pp[1]) & 0xff);
++      dp[2] = (png_byte)(((int)rp[2] - (int)pp[2]) & 0xff);
++      dp[3] = (png_byte)(((int)rp[3] - (int)pp[3]) & 0xff);
++      sum += MID - abs((int)dp[0] - MID);
++      sum += MID - abs((int)dp[1] - MID);
++      sum += MID - abs((int)dp[2] - MID);
++      sum += MID - abs((int)dp[3] - MID);
++      rp += BYTE_RGBA;
++      pp += BYTE_RGBA;
++      dp += BYTE_RGBA;
++      count -= BYTE_RGBA;
++   }
++
++   png_bytep cp = pp - BYTE_RGBA;
++   png_bytep lp = rp - BYTE_RGBA;
++   while (count > 0)
++   {
++      int a, b, c, pa, pb, pc, p;
++
++      b = *pp++;
++      c = *cp++;
++      a = *lp++;
++
++      p = b - c;
++      pc = a - c;
++
++      pa = abs(p);
++      pb = abs(pc);
++      pc = abs(p + pc);
++
++      p = (pa <= pb && pa <=pc) ? a : (pb <= pc) ? b : c;
++      *dp = (png_byte)(((int)*rp++ - p) & 0xff);
++
++      count--;
++      sum += MID - abs((int)*dp++ - MID);
++      if (sum > lmins)
++      {
++         return sum;
++      }
++   }
++   return sum;
++}
++
++void png_write_filter_paeth4_neon_only(png_structrp png_ptr,
++    size_t row_bytes)
++{
++   png_bytep rp = png_ptr->row_buf + 1;
++   png_bytep pp = png_ptr->prev_row + 1;
++   png_bytep dp = png_ptr->try_row + 1;
++   png_ptr->try_row[0] = PNG_FILTER_VALUE_PAETH;
++
++   size_t count = row_bytes;
++   uint8x16_t tmp_a = vdupq_n_u8(0);
++   uint8x16_t tmp_c = vdupq_n_u8(0);
++   while (count >= STEP)
++   {
++      uint8x16_t qrp = vld1q_u8(rp);
++      uint8x16_t b = vld1q_u8(pp);
++      uint8x16_t a = vextq_u8(tmp_a, qrp, SHIFT_RGBA);
++      uint8x16_t c = vextq_u8(tmp_c, b, SHIFT_RGBA);
++      tmp_a = qrp;
++      tmp_c = b;
++
++      int16x8_t a_hign = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(a)));
++      int16x8_t a_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(a)));
++      int16x8_t b_hign = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(b)));
++      int16x8_t b_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(b)));
++      int16x8_t c_hign = vreinterpretq_s16_u16(vmovl_u8(vget_high_u8(c)));
++      int16x8_t c_low = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(c)));
++
++      int16x8_t p = vsubq_s16(b_hign, c_hign);
++      int16x8_t pc = vsubq_s16(a_hign, c_hign);
++      int16x8_t pa = vabsq_s16(p);
++      int16x8_t pb = vabsq_s16(pc);
++      pc = vabsq_s16(vaddq_s16(p, pc));
++      uint16x8_t p1_u = vcleq_s16(pa, pb);
++      uint16x8_t pa_u = vcleq_s16(pa, pc);
++      uint16x8_t pb_u = vcleq_s16(pb, pc);
++      p1_u = vandq_u16(p1_u, pa_u);
++      uint8x8_t d_hign = vmovn_u16(pb_u);
++      uint8x8_t e_hign = vmovn_u16(p1_u);
++
++      p = vsubq_s16(b_low, c_low);
++      pc = vsubq_s16(a_low, c_low);
++      pa = vabsq_s16(p);
++      pb = vabsq_s16(pc);
++      pc = vabsq_s16(vaddq_s16(p, pc));
++      p1_u = vcleq_s16(pa, pb);
++      pa_u = vcleq_s16(pa, pc);
++      pb_u = vcleq_s16(pb, pc);
++      p1_u = vandq_u16(p1_u, pa_u);
++      uint8x8_t d_low = vmovn_u16(pb_u);
++      uint8x8_t e_low = vmovn_u16(p1_u);
++
++      uint8x16_t d = vcombine_u8(d_low, d_hign);
++      uint8x16_t e = vcombine_u8(e_low, e_hign);
++      d = vbslq_u8(d, b, c);
++      e = vbslq_u8(e, a, d);
++
++      uint8x16_t qdp = vsubq_u8(qrp, e);
++      vst1q_u8(dp, qdp);
++
++      rp += STEP;
++      pp += STEP;
++      dp += STEP;
++      count -= STEP;
++   }
++
++   if (count == row_bytes)
++   {
++      dp[0] = (png_byte)(((int)rp[0] - (int)pp[0]) & 0xff);
++      dp[1] = (png_byte)(((int)rp[1] - (int)pp[1]) & 0xff);
++      dp[2] = (png_byte)(((int)rp[2] - (int)pp[2]) & 0xff);
++      dp[3] = (png_byte)(((int)rp[3] - (int)pp[3]) & 0xff);
++      rp += BYTE_RGBA;
++      pp += BYTE_RGBA;
++      dp += BYTE_RGBA;
++      count -= BYTE_RGBA;
++   }
++
++   png_bytep cp = pp - BYTE_RGBA;
++   png_bytep lp = rp - BYTE_RGBA;
++   while (count > 0)
++   {
++      int a, b, c, pa, pb, pc, p;
++
++      b = *pp++;
++      c = *cp++;
++      a = *lp++;
++
++      p = b - c;
++      pc = a - c;
++
++      pa = abs(p);
++      pb = abs(pc);
++      pc = abs(p + pc);
++
++      p = (pa <= pb && pa <=pc) ? a : (pb <= pc) ? b : c;
++      *dp++ = (png_byte)(((int)*rp++ - p) & 0xff);
++      count--;
++   }
++}
++#endif
++
+ static size_t /* PRIVATE */
+ png_setup_sub_row(png_structrp png_ptr, png_uint_32 bpp,
+     size_t row_bytes, size_t lmins)
+ {
++#ifdef PNG_WRITE_NEON_ENABLE
++   if (bpp == 3)
++   {
++      return png_write_filter_sub3_neon(png_ptr, row_bytes, lmins);
++   }
++   if (bpp == 4)
++   {
++      return png_write_filter_sub4_neon(png_ptr, row_bytes, lmins);
++   }
++#endif
+    png_bytep rp, dp, lp;
+    size_t i;
+    size_t sum = 0;
+@@ -2318,6 +3261,16 @@ static void /* PRIVATE */
+ png_setup_sub_row_only(png_structrp png_ptr, png_uint_32 bpp,
+     size_t row_bytes)
+ {
++#ifdef PNG_WRITE_NEON_ENABLE
++   if (bpp == 3)
++   {
++      return png_write_filter_sub3_neon_only(png_ptr, row_bytes);
++   }
++   if (bpp == 4)
++   {
++      return png_write_filter_sub4_neon_only(png_ptr, row_bytes);
++   }
++#endif
+    png_bytep rp, dp, lp;
+    size_t i;
+ 
+@@ -2339,6 +3292,9 @@ png_setup_sub_row_only(png_structrp png_ptr, png_uint_32 bpp,
+ static size_t /* PRIVATE */
+ png_setup_up_row(png_structrp png_ptr, size_t row_bytes, size_t lmins)
+ {
++#ifdef PNG_WRITE_NEON_ENABLE
++   return png_write_filter_up_neon(png_ptr, row_bytes, lmins);
++#endif
+    png_bytep rp, dp, pp;
+    size_t i;
+    size_t sum = 0;
+@@ -2366,6 +3322,9 @@ png_setup_up_row(png_structrp png_ptr, size_t row_bytes, size_t lmins)
+ static void /* PRIVATE */
+ png_setup_up_row_only(png_structrp png_ptr, size_t row_bytes)
+ {
++#ifdef PNG_WRITE_NEON_ENABLE
++   return png_write_filter_up_neon_only(png_ptr, row_bytes);
++#endif
+    png_bytep rp, dp, pp;
+    size_t i;
+ 
+@@ -2383,6 +3342,16 @@ static size_t /* PRIVATE */
+ png_setup_avg_row(png_structrp png_ptr, png_uint_32 bpp,
+     size_t row_bytes, size_t lmins)
+ {
++#ifdef PNG_WRITE_NEON_ENABLE
++   if (bpp == 3)
++   {
++      return png_write_filter_avg3_neon(png_ptr, row_bytes, lmins);
++   }
++   if (bpp == 4)
++   {
++      return png_write_filter_avg4_neon(png_ptr, row_bytes, lmins);
++   }
++#endif
+    png_bytep rp, dp, pp, lp;
+    png_uint_32 i;
+    size_t sum = 0;
+@@ -2423,6 +3392,16 @@ static void /* PRIVATE */
+ png_setup_avg_row_only(png_structrp png_ptr, png_uint_32 bpp,
+     size_t row_bytes)
+ {
++#ifdef PNG_WRITE_NEON_ENABLE
++   if (bpp == 3)
++   {
++      return png_write_filter_avg3_neon_only(png_ptr, row_bytes);
++   }
++   if (bpp == 4)
++   {
++      return png_write_filter_avg4_neon_only(png_ptr, row_bytes);
++   }
++#endif
+    png_bytep rp, dp, pp, lp;
+    png_uint_32 i;
+ 
+@@ -2445,6 +3424,16 @@ static size_t /* PRIVATE */
+ png_setup_paeth_row(png_structrp png_ptr, png_uint_32 bpp,
+     size_t row_bytes, size_t lmins)
+ {
++#ifdef PNG_WRITE_NEON_ENABLE
++   if (bpp == 3)
++   {
++      return png_write_filter_paeth3_neon(png_ptr, row_bytes, lmins);
++   }
++   if (bpp == 4)
++   {
++      return png_write_filter_paeth4_neon(png_ptr, row_bytes, lmins);
++   }
++#endif
+    png_bytep rp, dp, pp, cp, lp;
+    size_t i;
+    size_t sum = 0;
+@@ -2506,6 +3495,16 @@ static void /* PRIVATE */
+ png_setup_paeth_row_only(png_structrp png_ptr, png_uint_32 bpp,
+     size_t row_bytes)
+ {
++#ifdef PNG_WRITE_NEON_ENABLE
++   if (bpp == 3)
++   {
++      return png_write_filter_paeth3_neon_only(png_ptr, row_bytes);
++   }
++   if (bpp == 4)
++   {
++      return png_write_filter_paeth4_neon_only(png_ptr, row_bytes);
++   }
++#endif
+    png_bytep rp, dp, pp, cp, lp;
+    size_t i;
+ 
+@@ -2613,6 +3612,25 @@ png_write_find_filter(png_structrp png_ptr, png_row_infop row_info)
+        */
+       png_bytep rp;
+       size_t sum = 0;
++#ifdef PNG_WRITE_NEON_ENABLE
++      size_t bytes = row_info->rowbytes;
++      rp = row_buf + 1;
++      while (bytes >= STEP)
++      {
++         uint8x16_t v = vld1q_u8(rp);
++         int8x16_t v_s = vreinterpretq_s8_u8(v);
++         v_s = vabsq_s8(v_s);
++         v = vreinterpretq_u8_s8(v_s);
++         sum += vaddlvq_u8(v);
++         rp += STEP;
++         bytes -= STEP;
++      }
++      while (bytes > 0)
++      {
++         sum += 128 - abs((int)*rp++ - 128);
++         bytes--;
++      }
++#else
+       size_t i;
+       unsigned int v;
+ 
+@@ -2627,7 +3645,7 @@ png_write_find_filter(png_structrp png_ptr, png_row_infop row_info)
+ #endif
+          }
+       }
+-
++#endif
+       mins = sum;
+    }
+ 
